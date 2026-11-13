@@ -1,0 +1,15 @@
+# Personal receipt files and generated exports
+*.xlsx
+*.csv
+*.pdf
+*backup*.json
+*Backup*.json
+
+# Python cache & temp files
+__pycache__/
+*.pyc
+download_vendors.py
+
+# System files
+.DS_Store
+Thumbs.db

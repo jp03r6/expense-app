@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ExpenseSnap - Receipt Compiler & Tracker</title>
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ExpenseSnap">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  
+  <link rel="stylesheet" href="css/app.css">
+
+  <!-- Self-contained Vendor Libraries -->
+  <script src="vendor/pdf-lib.min.js"></script>
+  <script src="vendor/pdf.min.js"></script>
+  <script src="vendor/xlsx.full.min.js"></script>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <a href="#" class="brand">
+        <div class="brand-icon">🧾</div>
+        <span>ExpenseSnap</span>
+      </a>
+
+      <!-- Report Selector Dropdown -->
+      <div class="report-selector-wrapper">
+        <select id="reportSelect" class="report-select" title="Active Expense Report"></select>
+        <button id="btnNewReport" class="btn btn-secondary btn-sm" title="Create New Report">＋ New</button>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <!-- Live Sync Status -->
+      <div id="syncBadge" class="sync-badge" title="Multi-Device Cloud Sync Status">
+        <span class="sync-indicator"></span>
+        <span id="syncText">Local Mode</span>
+      </div>
+
+      <!-- Expense Summary Pill -->
+      <div class="stats-pill">
+        <span>Total:</span>
+        <span id="headerTotal">$0.00</span>
+      </div>
+
+      <button id="btnAddReceiptHeader" class="btn btn-primary">
+        <span>📸 Add Receipt</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="app-container">
+    <!-- Desktop Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" data-tab="tab-receipts">
+        <span>📷 Receipts</span>
+        <span id="badgeReceiptCount" class="badge-count">0</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-ledger">
+        <span>📊 Spreadsheet Ledger</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-pdf">
+        <span>📄 Compile Single PDF</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-settings">
+        <span>⚙️ Multi-Device & Backup</span>
+      </button>
+    </nav>
+
+    <!-- TAB 1: RECEIPTS VIEW -->
+    <section id="tab-receipts" class="tab-view active">
+      <div class="view-header">
+        <div class="view-title-group">
+          <h2>Receipt Gallery</h2>
+          <p>Organize, enhance, and review your receipts. The sequence here directly matches the compiled PDF and company spreadsheet.</p>
+        </div>
+        <div class="view-actions">
+          <button id="btnQuickSample" class="btn btn-secondary btn-sm">✨ Add Demo Receipts</button>
+          <button id="btnAddReceipt" class="btn btn-primary">
+            <span>＋ Add Receipt or PDF</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyReceipts" class="empty-state" style="display: none;">
+        <div class="empty-icon">🧾</div>
+        <h3>No receipts in this report yet</h3>
+        <p>Snap a picture of a paper receipt from your phone, or upload a digital PDF (such as an Uber or airline receipt).</p>
+        <button id="btnEmptyAdd" class="btn btn-primary">📸 Add Your First Receipt</button>
+      </div>
+
+      <!-- Receipts Grid -->
+      <div id="receiptsGrid" class="receipts-grid"></div>
+    </section>
+
+    <!-- TAB 2: SPREADSHEET LEDGER -->
+    <section id="tab-ledger" class="tab-view">
+      <div class="ledger-container">
+        <div class="ledger-toolbar">
+          <div class="ledger-stats">
+            <div class="stat-box">
+              <span class="stat-label">Receipts</span>
+              <span id="ledgerCount" class="stat-value">0</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-label">Total Expenses</span>
+              <span id="ledgerTotal" class="stat-value highlight">$0.00</span>
+            </div>
+          </div>
+
+          <div class="view-actions">
+            <button id="btnCopyExcel" class="btn btn-success" title="Copy table formatted for Excel">
+              <span>📋 Copy Table for Excel</span>
+            </button>
+            <button id="btnExportXlsx" class="btn btn-secondary" title="Download Excel .xlsx file">
+              <span>📥 Export .xlsx</span>
+            </button>
+            <button id="btnExportCsv" class="btn btn-secondary" title="Download CSV file">
+              <span>📄 Export CSV</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">#</th>
+                <th style="width: 60px;">Image</th>
+                <th style="width: 140px;">Date</th>
+                <th>Merchant / Vendor</th>
+                <th style="width: 180px;">Category</th>
+                <th style="width: 160px;">Payment Method</th>
+                <th style="width: 120px;">Amount ($)</th>
+                <th>Notes / Business Purpose</th>
+                <th style="width: 60px;"></th>
+              </tr>
+            </thead>
+            <tbody id="ledgerTableBody">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: PDF COMPILATION & PREVIEW -->
+    <section id="tab-pdf" class="tab-view">
+      <div class="pdf-view-layout">
+        <!-- Settings Column -->
+        <div class="pdf-settings-panel">
+          <h3 class="settings-section-title">PDF Compilation Options</h3>
+
+          <div class="form-group">
+            <label>Receipt Layout on Pages</label>
+            <div class="layout-options">
+              <div class="layout-card selected" data-layout="full">
+                <div class="layout-icon">📄</div>
+                <div class="layout-details">
+                  <span class="layout-title">Full Page per Receipt</span>
+                  <span class="layout-desc">High resolution, preserves vector text of Uber/digital PDFs</span>
+                </div>
+              </div>
+              <div class="layout-card" data-layout="two_up">
+                <div class="layout-icon">📑</div>
+                <div class="layout-details">
+                  <span class="layout-title">2 Receipts per Page</span>
+                  <span class="layout-desc">Stacked top and bottom with clean metadata headers</span>
+                </div>
+              </div>
+              <div class="layout-card" data-layout="grid">
+                <div class="layout-icon">▦</div>
+                <div class="layout-details">
+                  <span class="layout-title">Compact Grid (4 per page)</span>
+                  <span class="layout-desc">Best for short slips, parking & coffee receipts</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="toggle-label">
+              <input type="checkbox" id="chkAddCover" class="toggle-checkbox" checked>
+              <span>Include Summary Cover Sheet</span>
+            </label>
+            <small style="color: var(--text-muted); font-size: 0.75rem;">Adds a professional first page with an itemized table and total matching your company's spreadsheet.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="pdfSubmitterName">Employee / Submitter Name</label>
+            <input type="text" id="pdfSubmitterName" class="form-input" placeholder="e.g. Alex Johnson">
+          </div>
+
+          <div class="form-group">
+            <label for="pdfDepartment">Department / Cost Center</label>
+            <input type="text" id="pdfDepartment" class="form-input" placeholder="e.g. Sales / Marketing">
+          </div>
+
+          <button id="btnCompilePdf" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+            <span>⚡ Compile & Download Single PDF</span>
+          </button>
+          <button id="btnPreviewPdf" class="btn btn-secondary" style="width: 100%;">
+            <span>👁️ Refresh Live Preview</span>
+          </button>
+        </div>
+
+        <!-- Preview Column -->
+        <div class="pdf-preview-panel">
+          <div class="pdf-preview-toolbar">
+            <span id="previewPageIndicator">Page 1 of 1</span>
+            <div style="display: flex; gap: 8px;">
+              <button id="btnPrevPage" class="btn btn-secondary btn-sm" disabled>◀ Prev</button>
+              <button id="btnNextPage" class="btn btn-secondary btn-sm" disabled>Next ▶</button>
+            </div>
+          </div>
+          <div class="pdf-canvas-container">
+            <canvas id="pdfPreviewCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: SETTINGS, CLOUD SYNC & BACKUP -->
+    <section id="tab-settings" class="tab-view">
+      <div style="max-width: 700px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px;">
+        <!-- Multi-Device Pairing Box -->
+        <div style="background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 24px;">
+          <h3 style="margin-bottom: 8px; font-size: 1.25rem;">📱 Multi-Device Pairing (Phone & Laptop)</h3>
+          <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 20px;">
+            Open this web app across your iOS work phone, Android phone, and Windows laptop to sync receipts seamlessly.
+          </p>
+
+          <div style="display: flex; flex-direction: column; gap: 14px; background: #f8fafc; padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Your Device Pairing Room Code</span>
+                <div id="displayRoomCode" style="font-size: 1.5rem; font-weight: 800; color: var(--primary); letter-spacing: 2px;">SYNC-XXXX</div>
+              </div>
+              <button id="btnCopyPairLink" class="btn btn-secondary btn-sm">📋 Copy Sync Link</button>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <input type="text" id="inputJoinRoom" class="form-input" placeholder="Enter 6-digit code to pair this device" style="flex: 1;">
+              <button id="btnJoinRoom" class="btn btn-primary btn-sm">Link Device</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Backup & Restore Box -->
+        <div style="background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 24px;">
+          <h3 style="margin-bottom: 8px; font-size: 1.25rem;">💾 Data Backup & Offline Portability</h3>
+          <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 20px;">
+            Export all reports, receipts, and images into a single portable backup file, or restore data anytime.
+          </p>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button id="btnExportBackup" class="btn btn-secondary">
+              <span>📤 Export Full JSON Backup</span>
+            </button>
+            <label class="btn btn-secondary" style="cursor: pointer;">
+              <span>📥 Restore Backup</span>
+              <input type="file" id="inputRestoreBackup" accept=".json" style="display: none;">
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Mobile Floating Action Button -->
+  <button id="fabAddReceipt" class="fab-btn" title="Add Receipt">📸</button>
+
+  <!-- Mobile Bottom Navigation Bar -->
+  <nav class="mobile-nav-bar">
+    <button class="mobile-nav-item active" data-tab="tab-receipts">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+      <span>Receipts</span>
+    </button>
+    <button class="mobile-nav-item" data-tab="tab-ledger">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+      <span>Ledger</span>
+    </button>
+    <button class="mobile-nav-item" data-tab="tab-pdf">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+      <span>PDF</span>
+    </button>
+    <button class="mobile-nav-item" data-tab="tab-settings">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+      <span>Sync</span>
+    </button>
+  </nav>
+
+  <!-- MODAL: ADD / CAPTURE RECEIPT -->
+  <div id="modalAddReceipt" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalReceiptTitle">Add Receipt or PDF</h3>
+        <button class="btn-icon modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Dropzone / Mobile Camera Trigger -->
+        <div id="dropzone" class="dropzone">
+          <div class="dropzone-icon">📷</div>
+          <div class="dropzone-title">Take Photo or Upload Receipt / PDF</div>
+          <div class="dropzone-hint">Supports Camera photos, JPG, PNG, HEIC, and digital PDFs (e.g. Uber receipts)</div>
+          <!-- Real Mobile Rear Camera / File selector -->
+          <input type="file" id="fileInput" accept="image/*,application/pdf" capture="environment" style="display: none;">
+        </div>
+
+        <!-- Preview Thumbnail & Quick Rotate / Enhance Filters -->
+        <div id="uploadPreviewSection" style="display: none; flex-direction: column; gap: 10px;">
+          <div style="position: relative; max-height: 220px; background: #0f172a; border-radius: var(--radius-md); overflow: hidden; display: flex; align-items: center; justify-content: center;">
+            <img id="uploadPreviewImg" style="max-height: 220px; max-width: 100%; object-fit: contain;">
+          </div>
+          <div style="display: flex; gap: 8px; justify-content: center;">
+            <button id="btnModalRotate" class="btn btn-secondary btn-sm" type="button">🔄 Rotate 90°</button>
+            <button id="btnModalEnhance" class="btn btn-secondary btn-sm" type="button">✨ Boost Thermal Contrast</button>
+          </div>
+        </div>
+
+        <!-- Metadata Form -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div class="form-group">
+            <label for="inputDate">Date</label>
+            <input type="date" id="inputDate" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label for="inputAmount">Amount ($)</label>
+            <input type="number" id="inputAmount" step="0.01" class="form-input" placeholder="0.00" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="inputMerchant">Merchant / Vendor</label>
+          <input type="text" id="inputMerchant" class="form-input" placeholder="e.g. Uber, Delta, Starbucks" required>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div class="form-group">
+            <label for="inputCategory">Category</label>
+            <select id="inputCategory" class="form-input">
+              <option value="Transportation">Transportation (Uber, Lyft, Gas, Parking)</option>
+              <option value="Meals & Entertainment" selected>Meals & Entertainment</option>
+              <option value="Travel & Lodging">Travel & Lodging (Hotel, Airfare)</option>
+              <option value="Office Supplies">Office Supplies & Tech</option>
+              <option value="Client Meeting">Client Meeting</option>
+              <option value="Other">Other Expense</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="inputPayment">Payment Method</label>
+            <select id="inputPayment" class="form-input">
+              <option value="Corporate Visa" selected>Corporate Visa</option>
+              <option value="Personal Card (Reimburse)">Personal Card (Reimburse)</option>
+              <option value="Cash">Cash</option>
+              <option value="Company Account">Company Account</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="inputNotes">Notes / Business Purpose</label>
+          <input type="text" id="inputNotes" class="form-input" placeholder="e.g. Ride to client meeting with Acme Corp">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary modal-close" type="button">Cancel</button>
+        <button id="btnSaveReceipt" class="btn btn-primary" type="button">Save to Report</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: IMAGE / PDF ZOOM VIEWER -->
+  <div id="modalZoom" class="modal-overlay">
+    <div class="modal-card" style="max-width: 800px;">
+      <div class="modal-header">
+        <h3 id="zoomTitle">Receipt Preview</h3>
+        <button class="btn-icon modal-close">✕</button>
+      </div>
+      <div class="modal-body" style="align-items: center; justify-content: center; background: #0f172a; min-height: 400px; padding: 10px;">
+        <img id="zoomImg" style="max-width: 100%; max-height: 70vh; object-fit: contain;">
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: NEW REPORT -->
+  <div id="modalNewReport" class="modal-overlay">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3>Create New Expense Report</h3>
+        <button class="btn-icon modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="inputReportTitle">Report Title</label>
+          <input type="text" id="inputReportTitle" class="form-input" placeholder="e.g. November 2026 Client Trip" required>
+        </div>
+        <div class="form-group">
+          <label for="inputReportSubmitter">Your Name</label>
+          <input type="text" id="inputReportSubmitter" class="form-input" placeholder="Employee Name">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary modal-close">Cancel</button>
+        <button id="btnCreateReportSubmit" class="btn btn-primary">Create Report</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Application Logic Modules -->
+  <script src="js/store.js"></script>
+  <script src="js/receipt-manager.js"></script>
+  <script src="js/pdf-compiler.js"></script>
+  <script src="js/spreadsheet-helper.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

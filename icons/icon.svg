@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  
+  <!-- Rounded App Background -->
+  <rect width="512" height="512" rx="112" fill="url(#grad)"/>
+  
+  <!-- Receipt Paper -->
+  <g filter="url(#shadow)">
+    <path d="M144 96 C144 80 156 68 172 68 L340 68 C356 68 368 80 368 96 L368 416 L340 398 L312 416 L284 398 L256 416 L228 398 L200 416 L172 398 L144 416 Z" fill="#ffffff"/>
+  </g>
+  
+  <!-- Receipt Details Lines -->
+  <!-- Header Bar -->
+  <rect x="180" y="112" width="152" height="20" rx="6" fill="#4f46e5" opacity="0.9"/>
+  
+  <!-- Horizontal Text Lines -->
+  <rect x="180" y="156" width="100" height="10" rx="4" fill="#94a3b8"/>
+  <rect x="300" y="156" width="32" height="10" rx="4" fill="#64748b"/>
+  
+  <rect x="180" y="184" width="80" height="10" rx="4" fill="#94a3b8"/>
+  <rect x="290" y="184" width="42" height="10" rx="4" fill="#64748b"/>
+  
+  <rect x="180" y="212" width="90" height="10" rx="4" fill="#94a3b8"/>
+  <rect x="295" y="212" width="37" height="10" rx="4" fill="#64748b"/>
+  
+  <!-- Dashed Line -->
+  <line x1="180" y1="248" x2="332" y2="248" stroke="#cbd5e1" stroke-width="3" stroke-dasharray="6,6"/>
+  
+  <!-- Total Line -->
+  <rect x="180" y="272" width="60" height="14" rx="4" fill="#0f172a"/>
+  <rect x="270" y="270" width="62" height="18" rx="4" fill="#10b981"/>
+  
+  <!-- Camera Lens Badge -->
+  <circle cx="360" cy="360" r="54" fill="#0f172a" stroke="#ffffff" stroke-width="8"/>
+  <circle cx="360" cy="360" r="32" fill="#4f46e5"/>
+  <circle cx="348" cy="348" r="8" fill="#ffffff" opacity="0.8"/>
+</svg>
