@@ -7,12 +7,22 @@ class CloudSyncManager {
   constructor() {
     this.status = 'local'; // 'local', 'connecting', 'online', 'synced', 'error'
     this.syncRoomId = null;
-    this.deviceId = 'dev_' + Math.random().toString(36).substr(2, 9);
+    
+    // Persistent device ID per browser so refreshes don't look like new devices
+    let savedDevId = localStorage.getItem('expensesnap_device_id');
+    if (!savedDevId) {
+      savedDevId = 'dev_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('expensesnap_device_id', savedDevId);
+    }
+    this.deviceId = savedDevId;
+
     this.mqttClient = null;
-    this.peers = new Set();
+    this.peerHeartbeats = new Map(); // senderId -> timestamp (with active TTL)
     this.listeners = [];
     this.isConnected = false;
     this.reconnectTimer = null;
+    this.heartbeatTimer = null;
+    this.cleanupTimer = null;
   }
 
   async init() {
@@ -32,15 +42,29 @@ class CloudSyncManager {
       }
     }
 
-    // 2. Connect to public real-time MQTT broker over WebSocket
+    // 2. Connect to real-time broker
     this.connect();
 
-    // 3. Setup periodic presence heartbeat
-    setInterval(() => {
+    // 3. Periodic heartbeat to tell peers we are alive
+    clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = setInterval(() => {
       if (this.isConnected) {
         this.publish('presence', { type: 'PING', deviceId: this.deviceId, timestamp: Date.now() });
       }
-    }, 12000);
+    }, 8000);
+
+    // 4. Periodic cleanup to remove peers that haven't pinged in 18 seconds
+    clearInterval(this.cleanupTimer);
+    this.cleanupTimer = setInterval(() => {
+      this.cleanStalePeers();
+    }, 4000);
+
+    // 5. Notify peers when closing the window
+    window.addEventListener('beforeunload', () => {
+      if (this.isConnected) {
+        this.publish('presence', { type: 'LEAVE', deviceId: this.deviceId });
+      }
+    });
   }
 
   generateRoomCode() {
@@ -53,7 +77,6 @@ class CloudSyncManager {
   }
 
   getPairingLink() {
-    // Use current origin and path, preserving GitHub Pages subfolder
     const base = window.location.origin + window.location.pathname;
     return `${base}?room=${encodeURIComponent(this.syncRoomId)}`;
   }
@@ -68,7 +91,7 @@ class CloudSyncManager {
     }
     this.syncRoomId = clean;
     localStorage.setItem('expensesnap_room_id', clean);
-    this.peers.clear();
+    this.peerHeartbeats.clear();
 
     if (this.mqttClient && this.isConnected) {
       try { this.mqttClient.disconnect(); } catch (e) {}
@@ -99,8 +122,8 @@ class CloudSyncManager {
       this.mqttClient.onConnectionLost = (responseObject) => {
         this.isConnected = false;
         this.status = 'local';
+        this.peerHeartbeats.clear();
         this.notifyStatus();
-        // Auto-reconnect after 4s
         clearTimeout(this.reconnectTimer);
         this.reconnectTimer = setTimeout(() => this.connect(), 4000);
       };
@@ -118,11 +141,10 @@ class CloudSyncManager {
           this.isConnected = true;
           this.status = 'online';
           
-          // Subscribe to this room's channel
-          const topic = `expensesnap/v2/${this.syncRoomId}/#`;
+          const topic = `expensesnap/app_v2/${this.syncRoomId}/#`;
           this.mqttClient.subscribe(topic, { qos: 0 });
 
-          // Announce presence and request current data if joining
+          // Announce presence
           this.publish('presence', { type: 'JOIN', deviceId: this.deviceId, timestamp: Date.now() });
           this.publish('sync', { type: 'REQUEST_DATA', senderId: this.deviceId });
 
@@ -147,7 +169,7 @@ class CloudSyncManager {
   publish(subtopic, data) {
     if (!this.isConnected || !this.mqttClient) return;
     try {
-      const topic = `expensesnap/v2/${this.syncRoomId}/${subtopic}`;
+      const topic = `expensesnap/app_v2/${this.syncRoomId}/${subtopic}`;
       const payload = JSON.stringify({
         ...data,
         senderId: this.deviceId,
@@ -178,14 +200,37 @@ class CloudSyncManager {
     this.publish('sync', { type: 'RECEIPTS_REORDERED', reportId, orderedIds });
   }
 
+  cleanStalePeers() {
+    const now = Date.now();
+    let changed = false;
+    for (const [id, lastSeen] of this.peerHeartbeats.entries()) {
+      if (now - lastSeen > 18000) { // stale after 18 seconds without a ping
+        this.peerHeartbeats.delete(id);
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.notifyStatus();
+    }
+  }
+
   async _handleIncomingMessage(message) {
     try {
       const payload = JSON.parse(message.payloadString);
       if (payload.senderId === this.deviceId) return; // Ignore own echoes
 
+      // Record heartbeat for this peer
+      if (payload.senderId) {
+        this.peerHeartbeats.set(payload.senderId, Date.now());
+      }
+
+      if (payload.type === 'LEAVE') {
+        this.peerHeartbeats.delete(payload.deviceId || payload.senderId);
+        this.notifyStatus();
+        return;
+      }
+
       if (payload.type === 'PING' || payload.type === 'JOIN') {
-        this.peers.add(payload.senderId);
-        this.status = 'synced';
         this.notifyStatus();
         if (payload.type === 'JOIN') {
           // Greet back so peer knows we are here
@@ -228,16 +273,20 @@ class CloudSyncManager {
   }
 
   getStatus() {
-    const peerCount = this.peers.size;
+    this.cleanStalePeers();
+    const peerCount = this.peerHeartbeats.size;
     let label = 'Local Mode';
     let isLive = false;
 
     if (this.isConnected) {
-      if (peerCount > 0) {
+      if (peerCount === 1) {
+        label = 'Synced (2 devices)';
+        isLive = true;
+      } else if (peerCount > 1) {
         label = `Synced (${peerCount + 1} devices)`;
         isLive = true;
       } else {
-        label = `Online (Waiting for peer)`;
+        label = 'Online (Waiting for phone)';
         isLive = true;
       }
     } else if (this.status === 'connecting') {
