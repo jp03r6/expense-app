@@ -1,5 +1,5 @@
 // Service Worker for ExpenseSnap PWA
-const CACHE_NAME = 'expensesnap-v2';
+const CACHE_NAME = 'expensesnap-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -10,6 +10,9 @@ const ASSETS_TO_CACHE = [
   './vendor/pdf.min.js',
   './vendor/pdf.worker.min.js',
   './vendor/xlsx.full.min.js',
+  './vendor/qrcode.min.js',
+  './vendor/jsqr.min.js',
+  './vendor/mqttws31.min.js',
   './js/store.js',
   './js/receipt-manager.js',
   './js/pdf-compiler.js',

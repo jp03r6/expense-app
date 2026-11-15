@@ -20,6 +20,9 @@
   <script src="vendor/pdf-lib.min.js"></script>
   <script src="vendor/pdf.min.js"></script>
   <script src="vendor/xlsx.full.min.js"></script>
+  <script src="vendor/qrcode.min.js"></script>
+  <script src="vendor/jsqr.min.js"></script>
+  <script src="vendor/mqttws31.min.js"></script>
 </head>
 <body>
 
@@ -240,22 +243,50 @@
       <div style="max-width: 700px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px;">
         <!-- Multi-Device Pairing Box -->
         <div style="background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 24px;">
-          <h3 style="margin-bottom: 8px; font-size: 1.25rem;">📱 Multi-Device Pairing (Phone & Laptop)</h3>
-          <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 20px;">
-            Open this web app across your iOS work phone, Android phone, and Windows laptop to sync receipts seamlessly.
-          </p>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <h3 style="font-size: 1.25rem;">📱 Real-Time Multi-Device Sync</h3>
+              <p style="color: var(--text-muted); font-size: 0.875rem;">
+                Connect your iOS work phone, Android phone, and Windows laptop to sync receipts automatically.
+              </p>
+            </div>
+            <div id="syncLiveStatusBadge" class="sync-badge" style="padding: 6px 12px; font-size: 0.8125rem;">
+              <span class="sync-indicator"></span>
+              <span id="syncLiveStatusText">Local Mode</span>
+            </div>
+          </div>
 
-          <div style="display: flex; flex-direction: column; gap: 14px; background: #f8fafc; padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--border);">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+          <!-- Dynamic QR Code Card -->
+          <div class="qr-card-container">
+            <div id="syncQrCodeBox" class="qr-code-box">
+              <div id="syncQrLoading" style="padding: 40px; color: var(--text-muted); font-size: 0.875rem;">Generating QR Code...</div>
+            </div>
+            <p style="font-weight: 700; font-size: 0.9375rem; margin-bottom: 4px;">Scan with Your Phone</p>
+            <p style="font-size: 0.8125rem; color: var(--text-muted); max-width: 380px; margin-bottom: 16px;">
+              Scan with your phone's native camera or use the in-app scanner to link this session instantly.
+            </p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+              <button id="btnOpenQrScanner" class="btn btn-primary btn-sm">
+                <span>📷 Scan QR Code with this Device</span>
+              </button>
+              <button id="btnCopyPairLink" class="btn btn-secondary btn-sm">
+                <span>📋 Copy Sync Link</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Room Code Details & Manual Input -->
+          <div style="display: flex; flex-direction: column; gap: 14px; background: #f8fafc; padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--border); margin-top: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
               <div>
-                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Your Device Pairing Room Code</span>
-                <div id="displayRoomCode" style="font-size: 1.5rem; font-weight: 800; color: var(--primary); letter-spacing: 2px;">SYNC-XXXX</div>
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Active Pairing Code</span>
+                <div id="displayRoomCode" style="font-size: 1.4rem; font-weight: 800; color: var(--primary); letter-spacing: 2px;">EXP-XXXXXX</div>
               </div>
-              <button id="btnCopyPairLink" class="btn btn-secondary btn-sm">📋 Copy Sync Link</button>
+              <button id="btnNewRoomCode" class="btn btn-secondary btn-sm" title="Generate a fresh room code">🔄 New Room</button>
             </div>
             <div style="display: flex; gap: 10px;">
-              <input type="text" id="inputJoinRoom" class="form-input" placeholder="Enter 6-digit code to pair this device" style="flex: 1;">
-              <button id="btnJoinRoom" class="btn btn-primary btn-sm">Link Device</button>
+              <input type="text" id="inputJoinRoom" class="form-input" placeholder="Or enter room code (e.g. EXP-W7K9)" style="flex: 1;">
+              <button id="btnJoinRoom" class="btn btn-primary btn-sm">Join Room</button>
             </div>
           </div>
         </div>
@@ -416,6 +447,30 @@
       <div class="modal-footer">
         <button class="btn btn-secondary modal-close">Cancel</button>
         <button id="btnCreateReportSubmit" class="btn btn-primary">Create Report</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: IN-APP QR CODE SCANNER -->
+  <div id="modalQrScanner" class="modal-overlay">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3>📷 Scan Pairing QR Code</h3>
+        <button class="btn-icon modal-close" id="btnCloseQrScanner">✕</button>
+      </div>
+      <div class="modal-body" style="align-items: center; padding: 20px;">
+        <div class="scanner-viewport-wrapper">
+          <video id="qrScannerVideo" playsinline autoplay muted></video>
+          <div class="scanner-laser"></div>
+          <div class="scanner-reticle"></div>
+        </div>
+        <p style="font-size: 0.875rem; color: var(--text-muted); text-align: center; margin-top: 14px;">
+          Hold your phone's camera up to the QR code on your laptop screen.
+        </p>
+        <canvas id="qrScannerCanvas" style="display: none;"></canvas>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnCancelScan">Cancel</button>
       </div>
     </div>
   </div>

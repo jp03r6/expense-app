@@ -44,9 +44,11 @@ class ExpenseApp {
     // 5. Initial Data Load
     await this.refreshAll();
 
-    // 6. Setup Cloud Sync display
-    const syncStatus = window.cloudSyncManager.getStatus();
-    document.getElementById('displayRoomCode').textContent = `ROOM-${syncStatus.roomCode}`;
+    // 6. Setup Cloud Sync & QR Pairing
+    window.cloudSyncManager.onStatusChange((status) => {
+      this.handleSyncStatusChange(status);
+    });
+    this.renderQrCode();
   }
 
   initTheme() {
@@ -72,6 +74,143 @@ class ExpenseApp {
     if (icon) {
       icon.textContent = theme === 'dark' ? '☀️' : '🌙';
     }
+  }
+
+  renderQrCode() {
+    const box = document.getElementById('syncQrCodeBox');
+    if (!box) return;
+    const link = window.cloudSyncManager.getPairingLink();
+    box.innerHTML = '';
+
+    if (window.QRCode) {
+      new window.QRCode(box, {
+        text: link,
+        width: 180,
+        height: 180,
+        colorDark: '#0f172a',
+        colorLight: '#ffffff',
+        correctLevel: window.QRCode.CorrectLevel.M
+      });
+    } else {
+      box.innerHTML = `<a href="${link}" target="_blank" style="word-break: break-all; font-size: 0.8rem; color: var(--primary);">${link}</a>`;
+    }
+
+    const displayRoom = document.getElementById('displayRoomCode');
+    if (displayRoom) displayRoom.textContent = window.cloudSyncManager.syncRoomId;
+  }
+
+  handleSyncStatusChange(status) {
+    const headerSyncText = document.getElementById('syncText');
+    const headerSyncBadge = document.getElementById('syncBadge');
+    const liveBadge = document.getElementById('syncLiveStatusBadge');
+    const liveText = document.getElementById('syncLiveStatusText');
+
+    if (headerSyncText) headerSyncText.textContent = status.label;
+    if (liveText) liveText.textContent = status.label;
+
+    const isSynced = status.peersCount > 0;
+    const isLive = status.isLive;
+
+    [headerSyncBadge, liveBadge].forEach(b => {
+      if (!b) return;
+      b.classList.toggle('synced', isSynced);
+      b.classList.toggle('online', isLive && !isSynced);
+      b.classList.toggle('syncing', status.status === 'connecting');
+    });
+
+    const displayRoom = document.getElementById('displayRoomCode');
+    if (displayRoom) displayRoom.textContent = status.roomCode;
+  }
+
+  startQrScanner() {
+    this.openModal('modalQrScanner');
+    const video = document.getElementById('qrScannerVideo');
+    const canvas = document.getElementById('qrScannerCanvas');
+    const ctx = canvas.getContext('2d');
+    this.scanningActive = true;
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      this.stopQrScanner();
+      this.showToast('Camera not supported in this browser.', 'error');
+      return;
+    }
+
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }
+    }).then(stream => {
+      this.scannerStream = stream;
+      video.srcObject = stream;
+      video.setAttribute('playsinline', 'true');
+      video.play();
+
+      const scanFrame = async () => {
+        if (!this.scanningActive) return;
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          // 1. Try native BarcodeDetector if available
+          if ('BarcodeDetector' in window) {
+            try {
+              if (!this.barcodeDetector) {
+                this.barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+              }
+              const codes = await this.barcodeDetector.detect(video);
+              if (codes.length > 0) {
+                this.handleScannedQr(codes[0].rawValue);
+                return;
+              }
+            } catch (e) {}
+          }
+
+          // 2. Fallback to jsQR
+          if (window.jsQR) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = window.jsQR(imgData.data, imgData.width, imgData.height, {
+              inversionAttempts: "dontInvert"
+            });
+            if (code && code.data) {
+              this.handleScannedQr(code.data);
+              return;
+            }
+          }
+        }
+        requestAnimationFrame(scanFrame);
+      };
+      requestAnimationFrame(scanFrame);
+    }).catch(err => {
+      this.stopQrScanner();
+      this.showToast('Camera error: ' + err.message, 'error');
+    });
+  }
+
+  stopQrScanner() {
+    this.scanningActive = false;
+    if (this.scannerStream) {
+      this.scannerStream.getTracks().forEach(t => t.stop());
+      this.scannerStream = null;
+    }
+    this.closeModal('modalQrScanner');
+  }
+
+  handleScannedQr(rawData) {
+    this.stopQrScanner();
+    if (navigator.vibrate) {
+      try { navigator.vibrate([60, 40, 60]); } catch (e) {}
+    }
+
+    let roomCode = rawData.trim();
+    try {
+      if (rawData.includes('?')) {
+        const url = new URL(rawData, window.location.origin);
+        const r = url.searchParams.get('room');
+        if (r) roomCode = r;
+      }
+    } catch (e) {}
+
+    window.cloudSyncManager.setRoomCode(roomCode);
+    this.renderQrCode();
+    this.showToast(`🎉 Connected to ${roomCode}! Syncing in real-time...`, 'success');
   }
 
   _bindEvents() {
@@ -206,7 +345,7 @@ class ExpenseApp {
 
       if (this.editingReceiptId) {
         // Update existing receipt
-        await window.store.updateReceipt(this.editingReceiptId, {
+        const updated = await window.store.updateReceipt(this.editingReceiptId, {
           date,
           amount,
           merchant,
@@ -214,10 +353,11 @@ class ExpenseApp {
           paymentMethod,
           notes
         });
+        if (updated) window.cloudSyncManager.broadcastReceiptUpdated(updated);
         this.showToast('Receipt updated', 'success');
       } else {
         // Add new receipt
-        await window.store.addReceipt({
+        const added = await window.store.addReceipt({
           ...this.stagedReceiptData,
           date,
           amount,
@@ -226,6 +366,7 @@ class ExpenseApp {
           paymentMethod,
           notes
         });
+        if (added) window.cloudSyncManager.broadcastReceiptAdded(added);
         this.showToast('Receipt added to report', 'success');
       }
 
@@ -300,19 +441,52 @@ class ExpenseApp {
       }
     });
 
+    // Sync Badge in Header
+    const syncBadge = document.getElementById('syncBadge');
+    if (syncBadge) {
+      syncBadge.addEventListener('click', () => {
+        this.switchTab('tab-settings');
+        this.renderQrCode();
+      });
+    }
+
+    // In-App QR Scanner Trigger & Close
+    const btnOpenQr = document.getElementById('btnOpenQrScanner');
+    if (btnOpenQr) {
+      btnOpenQr.addEventListener('click', () => this.startQrScanner());
+    }
+    const btnCloseQr = document.getElementById('btnCloseQrScanner');
+    if (btnCloseQr) {
+      btnCloseQr.addEventListener('click', () => this.stopQrScanner());
+    }
+    const btnCancelScan = document.getElementById('btnCancelScan');
+    if (btnCancelScan) {
+      btnCancelScan.addEventListener('click', () => this.stopQrScanner());
+    }
+
     // Multi-Device Cloud Sync Controls
     document.getElementById('btnCopyPairLink').addEventListener('click', () => {
       const link = window.cloudSyncManager.getPairingLink();
       navigator.clipboard.writeText(link);
-      this.showToast('Sync link copied! Send to your phone to link instantly.', 'success');
+      this.showToast('Sync link copied! Open on your phone to link.', 'success');
     });
+
+    const btnNewRoom = document.getElementById('btnNewRoomCode');
+    if (btnNewRoom) {
+      btnNewRoom.addEventListener('click', () => {
+        const newCode = window.cloudSyncManager.generateRoomCode();
+        window.cloudSyncManager.setRoomCode(newCode);
+        this.renderQrCode();
+        this.showToast('New room generated: ' + newCode, 'info');
+      });
+    }
 
     document.getElementById('btnJoinRoom').addEventListener('click', () => {
       const code = document.getElementById('inputJoinRoom').value.trim();
       if (code) {
         window.cloudSyncManager.setRoomCode(code);
-        document.getElementById('displayRoomCode').textContent = `ROOM-${code.toUpperCase()}`;
-        this.showToast(`Joined sync room ${code.toUpperCase()}!`, 'success');
+        this.renderQrCode();
+        this.showToast(`Joined sync room ${window.cloudSyncManager.syncRoomId}!`, 'success');
       }
     });
 
@@ -379,6 +553,11 @@ class ExpenseApp {
     // If PDF tab selected, trigger preview refresh
     if (tabId === 'tab-pdf') {
       this.refreshPdfPreview();
+    }
+
+    // If Settings tab selected, re-render QR code
+    if (tabId === 'tab-settings') {
+      this.renderQrCode();
     }
   }
 
@@ -528,11 +707,12 @@ class ExpenseApp {
         e.stopPropagation();
         const currentRot = (r.rotation || 0) + 90;
         const opt = await window.receiptManager.optimizeImage(r.dataUrl, 90, r.enhanceContrast);
-        await window.store.updateReceipt(r.id, {
+        const updated = await window.store.updateReceipt(r.id, {
           rotation: currentRot % 360,
           dataUrl: opt.dataUrl,
           thumbnailDataUrl: opt.thumbnailUrl
         });
+        if (updated) window.cloudSyncManager.broadcastReceiptUpdated(updated);
         this.showToast('Receipt rotated 90°', 'info');
       });
 
@@ -543,6 +723,7 @@ class ExpenseApp {
           const ids = this.currentReceipts.map(item => item.id);
           [ids[idx - 1], ids[idx]] = [ids[idx], ids[idx - 1]];
           await window.store.setReceiptOrder(this.currentReport.id, ids);
+          window.cloudSyncManager.broadcastReceiptsReordered(this.currentReport.id, ids);
         }
       });
 
@@ -553,6 +734,7 @@ class ExpenseApp {
           const ids = this.currentReceipts.map(item => item.id);
           [ids[idx + 1], ids[idx]] = [ids[idx], ids[idx + 1]];
           await window.store.setReceiptOrder(this.currentReport.id, ids);
+          window.cloudSyncManager.broadcastReceiptsReordered(this.currentReport.id, ids);
         }
       });
 
@@ -580,6 +762,7 @@ class ExpenseApp {
         e.stopPropagation();
         if (confirm(`Delete receipt from ${r.merchant}?`)) {
           await window.store.deleteReceipt(r.id);
+          window.cloudSyncManager.broadcastReceiptDeleted(r.id);
           this.showToast('Receipt removed', 'info');
         }
       });
@@ -659,7 +842,8 @@ class ExpenseApp {
           let val = e.target.value;
           if (field === 'amount') val = parseFloat(val) || 0;
 
-          await window.store.updateReceipt(r.id, { [field]: val });
+          const updated = await window.store.updateReceipt(r.id, { [field]: val });
+          if (updated) window.cloudSyncManager.broadcastReceiptUpdated(updated);
           this.showToast('Ledger updated', 'info');
         });
       });
@@ -668,6 +852,7 @@ class ExpenseApp {
       tr.querySelector('.btn-table-del').addEventListener('click', async () => {
         if (confirm(`Remove receipt from ${r.merchant}?`)) {
           await window.store.deleteReceipt(r.id);
+          window.cloudSyncManager.broadcastReceiptDeleted(r.id);
         }
       });
 

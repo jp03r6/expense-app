@@ -367,6 +367,77 @@ class ExpenseStore {
     this.notify('receipts:reordered', { reportId, orderedIds });
   }
 
+  // --- Real-Time Sync Ingestion ---
+  async upsertReceiptFromSync(receipt) {
+    if (!receipt || !receipt.id) return;
+    const reportId = receipt.reportId || this.activeReportId;
+    const report = await this.getReport(reportId);
+
+    const tx = this.db.transaction(['receipts', 'reports'], 'readwrite');
+    tx.objectStore('receipts').put(receipt);
+
+    if (report) {
+      if (!report.receiptOrder) report.receiptOrder = [];
+      if (!report.receiptOrder.includes(receipt.id)) {
+        report.receiptOrder.push(receipt.id);
+        report.updatedAt = Date.now();
+        tx.objectStore('reports').put(report);
+      }
+    }
+
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+
+    this.notify('receipt:sync_upsert', receipt);
+  }
+
+  async deleteReceiptFromSync(receiptId) {
+    const receipt = await this.getReceipt(receiptId);
+    if (!receipt) return;
+    const reportId = receipt.reportId;
+    const report = await this.getReport(reportId);
+
+    const tx = this.db.transaction(['receipts', 'reports'], 'readwrite');
+    tx.objectStore('receipts').delete(receiptId);
+
+    if (report && report.receiptOrder) {
+      report.receiptOrder = report.receiptOrder.filter(id => id !== receiptId);
+      report.updatedAt = Date.now();
+      tx.objectStore('reports').put(report);
+    }
+
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+
+    this.notify('receipt:sync_deleted', { receiptId, reportId });
+  }
+
+  async applyFullSync(report, receipts) {
+    if (!report) return;
+    const tx = this.db.transaction(['reports', 'receipts'], 'readwrite');
+    const reportStore = tx.objectStore('reports');
+    const receiptStore = tx.objectStore('receipts');
+
+    reportStore.put(report);
+    if (receipts && Array.isArray(receipts)) {
+      for (const r of receipts) {
+        receiptStore.put(r);
+      }
+    }
+
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+
+    await this.setActiveReport(report.id);
+    this.notify('sync:full_applied', { report, receipts });
+  }
+
   // --- Backup & Restore ---
   async exportFullBackup() {
     const reports = await this.getAllReports();
