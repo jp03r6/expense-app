@@ -1,5 +1,5 @@
 // Service Worker for ExpenseSnap PWA
-const CACHE_NAME = 'expensesnap-v4';
+const CACHE_NAME = 'expensesnap-v5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
