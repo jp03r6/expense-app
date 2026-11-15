@@ -27,8 +27,8 @@ class SpreadsheetHelper {
       const lineNum = idx + 1;
       const date = r.date || '';
       const merchant = (r.merchant || '').replace(/[\t\n\r]/g, ' ');
-      const category = (r.category || '').replace(/[\t\n\r]/g, ' ');
-      const paymentMethod = (r.paymentMethod || '').replace(/[\t\n\r]/g, ' ');
+      const category = this._displayCategory(r).replace(/[\t\n\r]/g, ' ');
+      const paymentMethod = this._displayPayment(r).replace(/[\t\n\r]/g, ' ');
       const amount = (parseFloat(r.amount) || 0).toFixed(2);
       const notes = (r.notes || '').replace(/[\t\n\r]/g, ' ');
 
@@ -80,8 +80,8 @@ class SpreadsheetHelper {
         idx + 1,
         r.date || '',
         r.merchant || '',
-        r.category || '',
-        r.paymentMethod || '',
+        this._displayCategory(r),
+        this._displayPayment(r),
         amt,
         r.notes || ''
       ]);
@@ -125,8 +125,8 @@ class SpreadsheetHelper {
         idx + 1,
         `"${(r.date || '').replace(/"/g, '""')}"`,
         `"${(r.merchant || '').replace(/"/g, '""')}"`,
-        `"${(r.category || '').replace(/"/g, '""')}"`,
-        `"${(r.paymentMethod || '').replace(/"/g, '""')}"`,
+        `"${this._displayCategory(r).replace(/"/g, '""')}"`,
+        `"${this._displayPayment(r).replace(/"/g, '""')}"`,
         (parseFloat(r.amount) || 0).toFixed(2),
         `"${(r.notes || '').replace(/"/g, '""')}"`
       ]);
@@ -142,6 +142,20 @@ class SpreadsheetHelper {
     link.download = fileName;
     link.click();
     URL.revokeObjectURL(link.href);
+  }
+
+  _displayCategory(receipt) {
+    if (window.expenseLabels && window.expenseLabels.displayCategory) {
+      return window.expenseLabels.displayCategory(receipt.category);
+    }
+    return receipt.category || '';
+  }
+
+  _displayPayment(receipt) {
+    if (window.expenseLabels && window.expenseLabels.displayPayment) {
+      return window.expenseLabels.displayPayment(receipt.paymentMethod);
+    }
+    return receipt.paymentMethod || '';
   }
 }
 

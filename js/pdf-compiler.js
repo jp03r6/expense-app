@@ -132,14 +132,17 @@ class PdfCompiler {
     page.drawText(`Submitter:`, { x: margin, y: metaY - 18, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
     page.drawText(`${report.submitterName || 'Employee'}`, { x: margin + 80, y: metaY - 18, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
 
+    page.drawText(`Department:`, { x: margin, y: metaY - 36, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
+    page.drawText(`${report.department || '—'}`, { x: margin + 80, y: metaY - 36, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
+
     page.drawText(`Date Generated:`, { x: pageWidth - margin - 180, y: metaY, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
     page.drawText(`${new Date().toISOString().split('T')[0]}`, { x: pageWidth - margin - 85, y: metaY, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
 
     page.drawText(`Total Receipts:`, { x: pageWidth - margin - 180, y: metaY - 18, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
     page.drawText(`${receipts.length}`, { x: pageWidth - margin - 85, y: metaY - 18, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
 
-    // Table Header
-    let tableY = metaY - 50;
+    // Table Header (shifted down so the Department line has room)
+    let tableY = metaY - 68;
     const colX = {
       item: margin,
       date: margin + 40,
@@ -191,10 +194,10 @@ class PdfCompiler {
         const merchantText = this._truncateText(r.merchant || 'Receipt', fontRegular, 8.5, 120);
         page.drawText(merchantText, { x: colX.merchant, y: tableY, size: 8.5, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
 
-        const catText = this._truncateText(r.category || 'General', fontRegular, 8.5, 110);
+        const catText = this._truncateText(this._displayCategory(r), fontRegular, 8.5, 110);
         page.drawText(catText, { x: colX.category, y: tableY, size: 8.5, font: fontRegular, color: rgb(0.3, 0.3, 0.3) });
 
-        const payText = this._truncateText(r.paymentMethod || 'Card', fontRegular, 8.5, 90);
+        const payText = this._truncateText(this._displayPayment(r), fontRegular, 8.5, 90);
         page.drawText(payText, { x: colX.payment, y: tableY, size: 8.5, font: fontRegular, color: rgb(0.4, 0.4, 0.4) });
 
         const amountStr = `$${amount.toFixed(2)}`;
@@ -279,7 +282,7 @@ class PdfCompiler {
               height: 32,
               color: rgb(0.15, 0.20, 0.30)
             });
-            page.drawText(`ITEM #${itemNum}: ${r.merchant} | Date: ${r.date} | Amount: $${(parseFloat(r.amount) || 0).toFixed(2)} [${r.category}]`, {
+            page.drawText(`ITEM #${itemNum}: ${r.merchant} | Date: ${r.date} | Amount: $${(parseFloat(r.amount) || 0).toFixed(2)} [${this._displayCategory(r)}]`, {
               x: 20,
               y: height - 20,
               size: 9.5,
@@ -315,7 +318,7 @@ class PdfCompiler {
         color: rgb(0.1, 0.1, 0.1)
       });
 
-      page.drawText(`Date: ${r.date} | Cat: ${r.category} | Amount: $${(parseFloat(r.amount) || 0).toFixed(2)}`, {
+      page.drawText(`Date: ${r.date} | Cat: ${this._displayCategory(r)} | Amount: $${(parseFloat(r.amount) || 0).toFixed(2)}`, {
         x: margin + 220,
         y: pageHeight - margin - 22,
         size: 9.5,
@@ -403,7 +406,7 @@ class PdfCompiler {
           color: rgb(0.1, 0.1, 0.1)
         });
 
-        page.drawText(`${r.date} | $${(parseFloat(r.amount) || 0).toFixed(2)} (${r.category})`, {
+        page.drawText(`${r.date} | $${(parseFloat(r.amount) || 0).toFixed(2)} (${this._displayCategory(r)})`, {
           x: pageWidth - margin - 190,
           y: slotY + slotHeight - 17,
           size: 9,
@@ -504,6 +507,20 @@ class PdfCompiler {
       width: origW * scale,
       height: origH * scale
     };
+  }
+
+  _displayCategory(receipt) {
+    if (window.expenseLabels && window.expenseLabels.displayCategory) {
+      return window.expenseLabels.displayCategory(receipt.category);
+    }
+    return receipt.category || 'General';
+  }
+
+  _displayPayment(receipt) {
+    if (window.expenseLabels && window.expenseLabels.displayPayment) {
+      return window.expenseLabels.displayPayment(receipt.paymentMethod);
+    }
+    return receipt.paymentMethod || 'Card';
   }
 
   _truncateText(text, font, size, maxWidth) {

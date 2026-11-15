@@ -75,7 +75,11 @@
   --btn-primary-bg-hover: linear-gradient(180deg, #4338ca 0%, #3730a3 100%);
 
   /* Category badges — muted backgrounds, darker text (all AA), plus an accent strip.
-     Edit these if you add or rename expense categories. */
+     Canonical categories are Meals, Transportation, Lodging, and Office Supplies.
+     Meals keeps the old --cat-meals-* colors; Lodging keeps --cat-lodging-*.
+     --cat-other-* is reserved for leftover stored values that do not map
+     (for example old “Client Meeting” or “Other” receipts). The unused
+     --cat-client-* tokens were removed. */
   --cat-transport-bg: #dbeafe;
   --cat-transport-fg: #1e40af;
   --cat-transport-accent: #2563eb;
@@ -88,12 +92,20 @@
   --cat-office-bg: #e0e7ff;
   --cat-office-fg: #3730a3;
   --cat-office-accent: #4f46e5;
-  --cat-client-bg: #fce7f3;
-  --cat-client-fg: #9d174d;
-  --cat-client-accent: #db2777;
   --cat-other-bg: #e2e8f0;
   --cat-other-fg: #334155;
   --cat-other-accent: #64748b;
+
+  /* PDF layout picker cards — selected state uses the primary indigo wash */
+  --layout-card-bg: var(--bg-card);
+  --layout-card-border: var(--border);
+  --layout-card-hover-bg: var(--bg-hover);
+  --layout-card-selected-bg: var(--primary-light);
+  --layout-card-selected-border: var(--primary);
+  /* Diagram ink/fill for the little page thumbnails on each layout card */
+  --layout-diagram-ink: var(--primary);
+  --layout-diagram-page: #ffffff;
+  --layout-diagram-slot: var(--primary-light);
 
   /* Border — default hairline around cards and inputs */
   --border: #e2e6ef;
@@ -701,8 +713,6 @@ button {
 .cat-select.cat-lodging { background: var(--cat-lodging-bg); color: var(--cat-lodging-fg); }
 .category-badge.cat-office,
 .cat-select.cat-office { background: var(--cat-office-bg); color: var(--cat-office-fg); }
-.category-badge.cat-client,
-.cat-select.cat-client { background: var(--cat-client-bg); color: var(--cat-client-fg); }
 .category-badge.cat-other,
 .cat-select.cat-other { background: var(--cat-other-bg); color: var(--cat-other-fg); }
 
@@ -715,14 +725,12 @@ button {
 .cat-select.cat-meals { border-left-color: var(--cat-meals-accent); }
 .cat-select.cat-lodging { border-left-color: var(--cat-lodging-accent); }
 .cat-select.cat-office { border-left-color: var(--cat-office-accent); }
-.cat-select.cat-client { border-left-color: var(--cat-client-accent); }
 .cat-select.cat-other { border-left-color: var(--cat-other-accent); }
 
 .ledger-table tr.cat-transport { box-shadow: inset 4px 0 0 var(--cat-transport-accent); }
 .ledger-table tr.cat-meals { box-shadow: inset 4px 0 0 var(--cat-meals-accent); }
 .ledger-table tr.cat-lodging { box-shadow: inset 4px 0 0 var(--cat-lodging-accent); }
 .ledger-table tr.cat-office { box-shadow: inset 4px 0 0 var(--cat-office-accent); }
-.ledger-table tr.cat-client { box-shadow: inset 4px 0 0 var(--cat-client-accent); }
 .ledger-table tr.cat-other { box-shadow: inset 4px 0 0 var(--cat-other-accent); }
 
 /* Receipts Grid */
@@ -753,7 +761,6 @@ button {
 .receipt-card.cat-meals { --cat-accent: var(--cat-meals-accent); }
 .receipt-card.cat-lodging { --cat-accent: var(--cat-lodging-accent); }
 .receipt-card.cat-office { --cat-accent: var(--cat-office-accent); }
-.receipt-card.cat-client { --cat-accent: var(--cat-client-accent); }
 .receipt-card.cat-other { --cat-accent: var(--cat-other-accent); }
 
 .receipt-card-header {
@@ -1058,44 +1065,166 @@ button {
   min-width: 0;
 }
 
+.pdf-layout-picker {
+  margin-bottom: 20px;
+}
+
 .layout-options {
   display: grid;
+  /* Stack on phones; a 3-column row kicks in at 901px below */
   grid-template-columns: 1fr;
-  gap: 10px;
+  gap: 12px;
 }
 
 .layout-card {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: 14px;
+  min-height: 44px;
+  padding: 14px 16px;
   border-radius: var(--radius-md);
-  border: 2px solid var(--border);
+  border: 2px solid var(--layout-card-border);
+  background: var(--layout-card-bg);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: border-color var(--motion), background-color var(--motion), box-shadow var(--motion), transform var(--motion);
+}
+.layout-radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 .layout-card:hover {
   border-color: var(--border-strong);
-  background: var(--bg-hover);
+  background: var(--layout-card-hover-bg);
 }
-.layout-card.selected {
-  border-color: var(--primary);
-  background: var(--primary-light);
+.layout-card:has(.layout-radio:checked) {
+  border-color: var(--layout-card-selected-border);
+  background: var(--layout-card-selected-bg);
+  box-shadow: 0 0 0 1px var(--layout-card-selected-border);
 }
-.layout-icon {
-  font-size: 1.5rem;
+.layout-card:has(.layout-radio:focus-visible) {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
 }
+.layout-card:active {
+  transform: scale(var(--press-scale));
+}
+
+/* Tiny page diagrams (CSS only, no extra libraries) */
+.layout-diagram {
+  flex-shrink: 0;
+  width: 44px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ld-page {
+  width: 34px;
+  height: 46px;
+  border: 2px solid var(--layout-diagram-ink);
+  border-radius: 3px;
+  background: var(--layout-diagram-page);
+  display: grid;
+  gap: 3px;
+  padding: 4px;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.12);
+}
+.layout-diagram-full .ld-page {
+  grid-template-rows: 1fr;
+}
+.layout-diagram-two .ld-page {
+  grid-template-rows: 1fr 1fr;
+}
+.layout-diagram-grid .ld-page {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+.ld-slot {
+  display: block;
+  min-height: 0;
+  background: var(--layout-diagram-slot);
+  border: 1px solid var(--layout-diagram-ink);
+  border-radius: 1px;
+}
+
 .layout-details {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
 }
 .layout-title {
   font-weight: 700;
   font-size: 0.875rem;
+  color: var(--text-main);
 }
 .layout-desc {
   font-size: 0.75rem;
   color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.layout-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--color-on-primary);
+  flex-shrink: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+}
+.layout-check::after {
+  content: "";
+  width: 5px;
+  height: 9px;
+  border: solid var(--color-on-primary);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translateY(-1px);
+}
+.layout-card:has(.layout-radio:checked) .layout-check {
+  display: flex;
+}
+
+/* On desktop, the three layout cards sit in a full-width row
+   above the settings + preview columns (the 320px settings
+   column is too narrow for three cards side by side). */
+@media (min-width: 901px) {
+  .layout-options {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .layout-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 18px 18px 16px;
+    min-height: 0;
+  }
+  .layout-diagram {
+    width: 52px;
+    height: 66px;
+  }
+  .ld-page {
+    width: 40px;
+    height: 54px;
+  }
+  .layout-check {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    margin: 0;
+  }
 }
 
 .toggle-label {
@@ -1134,11 +1263,34 @@ button {
 }
 
 .pdf-canvas-container {
+  position: relative;
   max-width: 100%;
   overflow: auto;
   box-shadow: 0 10px 30px rgba(0,0,0,0.3);
   background: #fff;
   border-radius: 4px;
+}
+
+.pdf-preview-updating {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(15 23 42 / 0.45);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--motion), visibility var(--motion);
+  z-index: 2;
+}
+.pdf-preview-panel.is-updating .pdf-preview-updating {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* Modals */
@@ -1629,9 +1781,6 @@ button {
   --cat-office-bg: #1e1b4b;
   --cat-office-fg: #a5b4fc;
   --cat-office-accent: #818cf8;
-  --cat-client-bg: #831843;
-  --cat-client-fg: #f9a8d4;
-  --cat-client-accent: #f472b6;
   --cat-other-bg: #1e293b;
   --cat-other-fg: #cbd5e1;
   --cat-other-accent: #94a3b8;
@@ -1662,9 +1811,13 @@ button {
   background: #ffffff;
   color: #047857;
 }
-[data-theme="dark"] .layout-card.selected {
-  border-color: var(--primary-dark);
-  background: var(--primary-light);
+[data-theme="dark"] {
+  --layout-diagram-page: #0f172a;
+  --layout-card-selected-border: var(--primary-dark);
+}
+[data-theme="dark"] .layout-card:has(.layout-radio:checked) {
+  border-color: var(--layout-card-selected-border);
+  background: var(--layout-card-selected-bg);
 }
 [data-theme="dark"] .btn-danger:hover {
   background: #7f1d1d;
@@ -1776,6 +1929,7 @@ button {
   .btn:active,
   .btn-icon:active,
   .fab-btn:active,
+  .layout-card:active,
   .receipt-card:hover {
     transform: none;
   }

@@ -175,37 +175,59 @@
 
     <!-- TAB 3: PDF COMPILATION & PREVIEW -->
     <section id="tab-pdf" class="tab-view">
+      <div class="pdf-layout-picker">
+        <div class="form-group">
+          <label id="pdfLayoutLabel">Receipt Layout on Pages</label>
+          <div class="layout-options" role="radiogroup" aria-labelledby="pdfLayoutLabel">
+            <label class="layout-card">
+              <input type="radio" name="pdfLayout" value="full" class="layout-radio" checked>
+              <span class="layout-diagram layout-diagram-full" aria-hidden="true">
+                <span class="ld-page"><span class="ld-slot"></span></span>
+              </span>
+              <span class="layout-details">
+                <span class="layout-title">Full Page per Receipt</span>
+                <span class="layout-desc">High resolution, preserves vector text of Uber/digital PDFs</span>
+              </span>
+              <span class="layout-check" aria-hidden="true"></span>
+            </label>
+            <label class="layout-card">
+              <input type="radio" name="pdfLayout" value="two_up" class="layout-radio">
+              <span class="layout-diagram layout-diagram-two" aria-hidden="true">
+                <span class="ld-page">
+                  <span class="ld-slot"></span>
+                  <span class="ld-slot"></span>
+                </span>
+              </span>
+              <span class="layout-details">
+                <span class="layout-title">2 Receipts per Page</span>
+                <span class="layout-desc">Stacked top and bottom with clean metadata headers</span>
+              </span>
+              <span class="layout-check" aria-hidden="true"></span>
+            </label>
+            <label class="layout-card">
+              <input type="radio" name="pdfLayout" value="grid" class="layout-radio">
+              <span class="layout-diagram layout-diagram-grid" aria-hidden="true">
+                <span class="ld-page">
+                  <span class="ld-slot"></span>
+                  <span class="ld-slot"></span>
+                  <span class="ld-slot"></span>
+                  <span class="ld-slot"></span>
+                </span>
+              </span>
+              <span class="layout-details">
+                <span class="layout-title">Compact Grid (4 per page)</span>
+                <span class="layout-desc">Best for short slips, parking &amp; coffee receipts</span>
+              </span>
+              <span class="layout-check" aria-hidden="true"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div class="pdf-view-layout">
         <!-- Settings Column -->
         <div class="pdf-settings-panel">
           <h3 class="settings-section-title">PDF Compilation Options</h3>
-
-          <div class="form-group">
-            <label>Receipt Layout on Pages</label>
-            <div class="layout-options">
-              <div class="layout-card selected" data-layout="full">
-                <div class="layout-icon">📄</div>
-                <div class="layout-details">
-                  <span class="layout-title">Full Page per Receipt</span>
-                  <span class="layout-desc">High resolution, preserves vector text of Uber/digital PDFs</span>
-                </div>
-              </div>
-              <div class="layout-card" data-layout="two_up">
-                <div class="layout-icon">📑</div>
-                <div class="layout-details">
-                  <span class="layout-title">2 Receipts per Page</span>
-                  <span class="layout-desc">Stacked top and bottom with clean metadata headers</span>
-                </div>
-              </div>
-              <div class="layout-card" data-layout="grid">
-                <div class="layout-icon">▦</div>
-                <div class="layout-details">
-                  <span class="layout-title">Compact Grid (4 per page)</span>
-                  <span class="layout-desc">Best for short slips, parking & coffee receipts</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
           <div class="form-group">
             <label class="toggle-label">
@@ -226,15 +248,12 @@
           </div>
 
           <button id="btnCompilePdf" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
-            <span>⚡ Compile & Download Single PDF</span>
-          </button>
-          <button id="btnPreviewPdf" class="btn btn-secondary" style="width: 100%;">
-            <span>👁️ Refresh Live Preview</span>
+            <span>⚡ Compile &amp; Download Single PDF</span>
           </button>
         </div>
 
         <!-- Preview Column -->
-        <div class="pdf-preview-panel">
+        <div class="pdf-preview-panel" id="pdfPreviewPanel">
           <div class="pdf-preview-toolbar">
             <span id="previewPageIndicator">Page 1 of 1</span>
             <div style="display: flex; gap: 8px;">
@@ -244,6 +263,7 @@
           </div>
           <div class="pdf-canvas-container">
             <canvas id="pdfPreviewCanvas"></canvas>
+            <div id="previewUpdating" class="pdf-preview-updating">Updating preview…</div>
           </div>
         </div>
       </div>
@@ -394,21 +414,18 @@
           <div class="form-group">
             <label for="inputCategory">Category</label>
             <select id="inputCategory" class="form-input">
-              <option value="Transportation">Transportation (Uber, Lyft, Gas, Parking)</option>
-              <option value="Meals & Entertainment" selected>Meals & Entertainment</option>
-              <option value="Travel & Lodging">Travel & Lodging (Hotel, Airfare)</option>
-              <option value="Office Supplies">Office Supplies & Tech</option>
-              <option value="Client Meeting">Client Meeting</option>
-              <option value="Other">Other Expense</option>
+              <option value="Meals" selected>Meals</option>
+              <option value="Transportation">Transportation</option>
+              <option value="Lodging">Lodging</option>
+              <option value="Office Supplies">Office Supplies</option>
             </select>
           </div>
           <div class="form-group">
             <label for="inputPayment">Payment Method</label>
             <select id="inputPayment" class="form-input">
-              <option value="Corporate Visa" selected>Corporate Visa</option>
-              <option value="Personal Card (Reimburse)">Personal Card (Reimburse)</option>
+              <option value="Corporate Card" selected>Corporate Card</option>
+              <option value="Personal Card">Personal Card</option>
               <option value="Cash">Cash</option>
-              <option value="Company Account">Company Account</option>
             </select>
           </div>
         </div>

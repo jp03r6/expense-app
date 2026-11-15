@@ -47,7 +47,7 @@ class ReceiptManager {
       enhanceContrast: false,
       date: smartDefaults.date || new Date().toISOString().split('T')[0],
       merchant: smartDefaults.merchant || 'Receipt',
-      category: smartDefaults.category || 'Meals & Entertainment',
+      category: smartDefaults.category || 'Meals',
       paymentMethod: 'Corporate Card',
       amount: 0.0,
       notes: ''
@@ -102,7 +102,7 @@ class ReceiptManager {
       enhanceContrast: false,
       date: smartDefaults.date || new Date().toISOString().split('T')[0],
       merchant: smartDefaults.merchant || (file.name.toLowerCase().includes('uber') ? 'Uber' : 'PDF Receipt'),
-      category: file.name.toLowerCase().includes('uber') ? 'Transportation' : 'Travel & Lodging',
+      category: file.name.toLowerCase().includes('uber') ? 'Transportation' : 'Lodging',
       paymentMethod: 'Corporate Card',
       amount: 0.0,
       notes: `Digital PDF (${pageCount} page${pageCount > 1 ? 's' : ''})`
@@ -198,7 +198,7 @@ class ReceiptManager {
   _inferDefaultsFromFileName(name) {
     const clean = name.replace(/[-_]/g, ' ').toLowerCase();
     let merchant = '';
-    let category = 'Meals & Entertainment';
+    let category = 'Meals';
     let date = '';
 
     if (clean.includes('uber')) {
@@ -209,13 +209,13 @@ class ReceiptManager {
       category = 'Transportation';
     } else if (clean.includes('delta') || clean.includes('united') || clean.includes('flight') || clean.includes('airline')) {
       merchant = 'Airline';
-      category = 'Travel & Lodging';
+      category = 'Lodging';
     } else if (clean.includes('marriott') || clean.includes('hilton') || clean.includes('hotel') || clean.includes('airbnb')) {
       merchant = 'Hotel';
-      category = 'Travel & Lodging';
+      category = 'Lodging';
     } else if (clean.includes('starbucks') || clean.includes('coffee')) {
       merchant = 'Starbucks';
-      category = 'Meals & Entertainment';
+      category = 'Meals';
     } else {
       // Capitalize first word of file as fallback
       const parts = name.split(/[-_.\s]/);
