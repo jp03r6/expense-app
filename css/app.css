@@ -556,11 +556,14 @@ button {
 
 .table-responsive {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ledger-table {
   width: 100%;
+  min-width: 860px; /* Keep columns readable; the wrapper scrolls on small screens */
   border-collapse: collapse;
   text-align: left;
   font-size: 0.875rem;
@@ -661,6 +664,22 @@ button {
 .form-input:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.join-room-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.join-room-row .form-input {
+  flex: 1;
+  min-width: 0;
 }
 
 .layout-options {
@@ -772,7 +791,7 @@ button {
   max-width: 600px;
   width: 100%;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow: hidden;
   box-shadow: var(--shadow-xl);
   display: flex;
   flex-direction: column;
@@ -795,6 +814,15 @@ button {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-header,
+.modal-footer {
+  flex-shrink: 0;
 }
 
 .modal-footer {
@@ -936,37 +964,229 @@ button {
   height: 22px;
 }
 
-/* Responsive adjustments */
+/* Responsive adjustments (phones and small tablets) */
 @media (max-width: 900px) {
+  /* Stack the PDF settings above the preview */
   .pdf-view-layout {
     grid-template-columns: 1fr;
   }
-  
+
+  /* Two-row header so the report name, total, and buttons are not cut off */
   .app-header {
-    padding: 0 14px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    grid-template-areas:
+      "brand brand total theme"
+      "report report report sync";
+    height: auto;
+    min-height: var(--header-height);
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 8px;
+    padding-top: calc(8px + env(safe-area-inset-top, 0px));
+    padding-bottom: 8px;
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
   }
-  
+  .header-left,
+  .header-right {
+    display: contents;
+  }
+  .brand {
+    grid-area: brand;
+    font-size: 1.1rem;
+    min-width: 0;
+  }
+  .report-selector-wrapper {
+    grid-area: report;
+    min-width: 0;
+  }
+  .stats-pill {
+    grid-area: total;
+    max-width: 100%;
+  }
+  /* "Total:" label is implied by the amount; hiding it frees space on a narrow row */
+  .stats-pill > span:first-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  #btnThemeToggle {
+    grid-area: theme;
+  }
+  #syncBadge {
+    grid-area: sync;
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    padding: 10px;
+  }
+  /* Status text is already on the Sync tab; keep just the dot in the header */
+  .app-header #syncText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .report-select {
+    flex: 1;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    min-height: 44px;
+    font-size: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .header-right .btn-primary {
+    display: none; /* FAB / in-page button handle this */
+  }
+
   .app-container {
     padding: 14px;
-    padding-bottom: 80px; /* Space for mobile nav */
+    padding-left: max(14px, env(safe-area-inset-left, 0px));
+    padding-right: max(14px, env(safe-area-inset-right, 0px));
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); /* Space for mobile nav */
+    max-width: 100%;
   }
-  
+
   .nav-tabs {
     display: none; /* Replaced by bottom nav */
   }
-  
+
   .mobile-nav-bar {
     display: flex;
+    height: auto;
+    min-height: var(--nav-height);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
   }
-  
-  .fab-btn {
-    display: flex;
-    align-items: center;
+  .mobile-nav-item {
+    min-height: 44px;
+    padding: 8px 4px;
+  }
+
+  /* Leave the camera FAB hidden on phones. The full-width "Add Receipt" button
+     in the gallery already covers this, and the FAB was sitting on top of amounts. */
+
+  /* Prevent long titles and labels from blowing out the layout */
+  .view-title-group {
+    min-width: 0;
+  }
+  .view-title-group h2 {
+    font-size: 1.25rem;
+  }
+  .view-title-group p,
+  .layout-desc,
+  .dropzone-hint,
+  .receipt-merchant,
+  .dropzone-title {
+    overflow-wrap: anywhere;
+  }
+
+  .view-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .view-actions .btn {
+    flex: 1 1 12rem;
     justify-content: center;
   }
-  
-  .header-right .btn-primary {
-    display: none; /* FAB handles this */
+
+  .receipts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Comfortable tap targets and 16px inputs (stops iPhone zoom-on-focus) */
+  .btn-sm,
+  .btn-icon,
+  .form-input,
+  .table-input,
+  .join-room-row .btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .form-input,
+  .table-input,
+  .report-select,
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .join-room-row {
+    flex-wrap: wrap;
+  }
+
+  /* Modal: fit within the screen, including iPhone notches */
+  .modal-overlay {
+    padding: max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+    align-items: flex-end;
+  }
+  .modal-card {
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px);
+    max-width: 100%;
+    border-bottom-left-radius: var(--radius-lg);
+    border-bottom-right-radius: var(--radius-lg);
+  }
+  .modal-header,
+  .modal-footer,
+  .modal-body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .modal-header {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+  .modal-footer {
+    padding-top: 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    flex-wrap: wrap;
+  }
+  .modal-footer .btn {
+    flex: 1 1 auto;
+  }
+
+  .pdf-preview-panel {
+    min-height: 320px;
+    padding: 16px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .ledger-toolbar .view-actions {
+    width: 100%;
+  }
+
+  .toast-container {
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    left: max(12px, env(safe-area-inset-left, 0px));
+  }
+  .toast {
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
 }
 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>ExpenseSnap - Receipt Compiler & Tracker</title>
   
   <!-- PWA Meta Tags -->
@@ -284,7 +284,7 @@
               </div>
               <button id="btnNewRoomCode" class="btn btn-secondary btn-sm" title="Generate a fresh room code">🔄 New Room</button>
             </div>
-            <div style="display: flex; gap: 10px;">
+            <div class="join-room-row">
               <input type="text" id="inputJoinRoom" class="form-input" placeholder="Or enter room code (e.g. EXP-W7K9)" style="flex: 1;">
               <button id="btnJoinRoom" class="btn btn-primary btn-sm">Join Room</button>
             </div>
@@ -363,7 +363,7 @@
         </div>
 
         <!-- Metadata Form -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        <div class="form-row">
           <div class="form-group">
             <label for="inputDate">Date</label>
             <input type="date" id="inputDate" class="form-input" required>
@@ -379,7 +379,7 @@
           <input type="text" id="inputMerchant" class="form-input" placeholder="e.g. Uber, Delta, Starbucks" required>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        <div class="form-row">
           <div class="form-group">
             <label for="inputCategory">Category</label>
             <select id="inputCategory" class="form-input">
