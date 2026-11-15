@@ -43,8 +43,8 @@
   /* Danger border — the outline on those pale danger buttons */
   --danger-border: #fecaca;
 
-  /* Page background — a cool, barely-indigo gray so the white cards stand out */
-  --bg-main: #f5f6fb;
+  /* Page background — a clearly indigo-tinted gray so white cards pop at a glance */
+  --bg-main: #e8eaf6;
   /* Card background — clean white surfaces (cards, header, dialogs) */
   --bg-card: #ffffff;
   /* Muted surface — slightly shaded areas such as card headers and toolbars */
@@ -53,10 +53,47 @@
   --bg-hover: #e8ebf3;
   /* Input background — fields and the report dropdown */
   --bg-input: #ffffff;
-  /* Header background — a faint top-to-bottom wash so the bar feels finished, not flat */
-  --bg-header: linear-gradient(180deg, #ffffff 0%, #f7f8fd 100%);
+  /* Header background (legacy alias; the visible bar uses --header-band) */
+  --bg-header: var(--header-band);
   /* Sidebar (unused on this layout, kept so older rules still resolve) */
   --bg-sidebar: #ffffff;
+
+  /* Header band — rich indigo. Ends at #4f46e5 rather than the brighter
+     #6366f1 so white text stays WCAG AA (white on #6366f1 is just under 4.5:1). */
+  --header-band: linear-gradient(105deg, #312e81 0%, #4338ca 48%, #4f46e5 100%);
+  /* Header foreground — white text and icons on the indigo band */
+  --header-fg: #ffffff;
+  /* Header muted — slightly soft white for secondary header labels */
+  --header-fg-muted: rgba(255, 255, 255, 0.86);
+  /* Header controls — glass-like chips that sit cleanly on the indigo bar */
+  --header-control-bg: rgba(255, 255, 255, 0.14);
+  --header-control-border: rgba(255, 255, 255, 0.32);
+  --header-control-hover: rgba(255, 255, 255, 0.24);
+
+  /* Primary button fill — a gentle indigo gradient, darker at the bottom */
+  --btn-primary-bg: linear-gradient(180deg, #4f46e5 0%, #4338ca 100%);
+  --btn-primary-bg-hover: linear-gradient(180deg, #4338ca 0%, #3730a3 100%);
+
+  /* Category badges — muted backgrounds, darker text (all AA), plus an accent strip.
+     Edit these if you add or rename expense categories. */
+  --cat-transport-bg: #dbeafe;
+  --cat-transport-fg: #1e40af;
+  --cat-transport-accent: #2563eb;
+  --cat-meals-bg: #ffedd5;
+  --cat-meals-fg: #9a3412;
+  --cat-meals-accent: #ea580c;
+  --cat-lodging-bg: #ccfbf1;
+  --cat-lodging-fg: #115e59;
+  --cat-lodging-accent: #0f766e;
+  --cat-office-bg: #e0e7ff;
+  --cat-office-fg: #3730a3;
+  --cat-office-accent: #4f46e5;
+  --cat-client-bg: #fce7f3;
+  --cat-client-fg: #9d174d;
+  --cat-client-accent: #db2777;
+  --cat-other-bg: #e2e8f0;
+  --cat-other-fg: #334155;
+  --cat-other-accent: #64748b;
 
   /* Border — default hairline around cards and inputs */
   --border: #e2e6ef;
@@ -91,7 +128,7 @@
   --radius-full: 9999px;
 
   --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05);
-  --shadow-md: 0 4px 10px -2px rgb(15 23 42 / 0.08), 0 2px 4px -2px rgb(15 23 42 / 0.05);
+  --shadow-md: 0 8px 22px -6px rgb(15 23 42 / 0.16), 0 3px 6px -2px rgb(15 23 42 / 0.08);
   --shadow-lg: 0 10px 15px -3px rgb(15 23 42 / 0.1), 0 4px 6px -4px rgb(15 23 42 / 0.06);
   --shadow-xl: 0 20px 25px -5px rgb(15 23 42 / 0.12), 0 8px 10px -6px rgb(15 23 42 / 0.06);
 
@@ -168,13 +205,14 @@ button {
 }
 
 .btn-primary {
-  background: var(--primary);
+  background: var(--btn-primary-bg);
   color: var(--color-on-primary);
-  box-shadow: 0 1px 2px rgb(79 70 229 / 0.25);
+  box-shadow: 0 2px 8px rgb(79 70 229 / 0.38), inset 0 1px 0 rgb(255 255 255 / 0.16);
+  border: 1px solid rgb(55 48 163 / 0.35);
 }
 .btn-primary:hover {
-  background: var(--primary-hover);
-  box-shadow: 0 2px 6px rgb(79 70 229 / 0.3);
+  background: var(--btn-primary-bg-hover);
+  box-shadow: 0 4px 12px rgb(67 56 202 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.12);
 }
 
 .btn-secondary {
@@ -189,22 +227,24 @@ button {
 }
 
 .btn-success {
-  background: var(--success);
+  background: linear-gradient(180deg, #059669 0%, var(--success) 100%);
   color: var(--color-on-primary);
-  box-shadow: 0 1px 2px rgb(4 120 87 / 0.25);
+  box-shadow: 0 2px 8px rgb(4 120 87 / 0.32), inset 0 1px 0 rgb(255 255 255 / 0.14);
+  border: 1px solid rgb(6 96 70 / 0.35);
 }
 .btn-success:hover {
   background: var(--success-hover);
 }
 
 .btn-danger {
-  background: var(--danger-light);
-  color: var(--danger);
-  border: 1px solid var(--danger-border);
+  background: var(--danger);
+  color: var(--color-on-primary);
+  border: 1px solid transparent;
+  box-shadow: 0 1px 3px rgb(185 28 28 / 0.28);
 }
 .btn-danger:hover {
-  background: #fee2e2;
-  color: var(--danger-hover);
+  background: var(--danger-hover);
+  color: var(--color-on-primary);
 }
 
 .btn-sm {
@@ -230,9 +270,10 @@ button {
 /* Header */
 .app-header {
   height: var(--header-height);
-  background: var(--bg-header);
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 0 rgb(79 70 229 / 0.04);
+  background: var(--header-band);
+  border-bottom: none;
+  box-shadow: 0 4px 18px rgb(49 46 129 / 0.28);
+  color: var(--header-fg);
   position: sticky;
   top: 0;
   z-index: 40;
@@ -240,6 +281,74 @@ button {
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
+}
+
+.app-header .brand {
+  color: var(--header-fg);
+}
+.app-header .brand-icon {
+  background: var(--header-control-bg);
+  color: var(--header-fg);
+  box-shadow: inset 0 0 0 1px var(--header-control-border);
+}
+.app-header .report-select {
+  background: var(--header-control-bg);
+  border-color: var(--header-control-border);
+  color: var(--header-fg);
+}
+.app-header .report-select:focus {
+  border-color: #ffffff;
+  background: var(--header-control-hover);
+  color: var(--header-fg);
+}
+.app-header .report-select option {
+  color: #0f172a;
+  background: #ffffff;
+}
+.app-header #btnNewReport {
+  background: var(--header-control-bg);
+  border-color: var(--header-control-border);
+  color: var(--header-fg);
+  box-shadow: none;
+}
+.app-header #btnNewReport:hover {
+  background: var(--header-control-hover);
+  border-color: #ffffff;
+  color: #ffffff;
+}
+.app-header .btn-icon {
+  color: var(--header-fg);
+}
+.app-header .btn-icon:hover {
+  background: var(--header-control-bg);
+  color: var(--header-fg);
+}
+.app-header .sync-badge {
+  background: var(--header-control-bg);
+  color: var(--header-fg-muted);
+}
+.app-header .sync-badge.synced {
+  background: rgb(4 120 87 / 0.4);
+  color: #a7f3d0;
+}
+.app-header .sync-badge.online,
+.app-header .sync-badge.syncing {
+  background: var(--header-control-bg);
+  color: var(--header-fg);
+}
+.app-header .stats-pill {
+  background: var(--header-control-bg);
+  border-color: var(--header-control-border);
+  color: var(--header-fg);
+}
+.app-header .stats-pill #headerTotal {
+  background: #ffffff;
+  color: #047857;
+}
+.app-header .report-select:focus-visible,
+.app-header #btnNewReport:focus-visible,
+.app-header .btn-icon:focus-visible {
+  outline-color: #ffffff;
 }
 
 .header-left {
@@ -408,8 +517,9 @@ button {
   background: var(--bg-hover);
 }
 .tab-btn.active {
-  color: var(--primary);
-  background: var(--primary-light);
+  color: var(--color-on-primary);
+  background: var(--primary);
+  box-shadow: 0 2px 8px rgb(79 70 229 / 0.28);
 }
 
 .badge-count {
@@ -421,7 +531,7 @@ button {
   font-weight: 700;
 }
 .tab-btn.active .badge-count {
-  background: var(--primary);
+  background: rgb(255 255 255 / 0.22);
   color: var(--color-on-primary);
 }
 
@@ -440,11 +550,11 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .view-title-group h2 {
-  font-size: var(--font-2xl);
+  font-size: 1.75rem;
   font-weight: 700;
   letter-spacing: var(--letter-tight);
   color: var(--text-main);
@@ -498,6 +608,123 @@ button {
   margin-right: auto;
 }
 
+/* Report total hero — the big figure at the top of the Receipts view */
+.report-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 24px;
+  flex-wrap: wrap;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 20px 24px 20px 28px;
+  margin-bottom: 22px;
+  position: relative;
+  overflow: hidden;
+}
+.report-hero::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: var(--header-band);
+}
+.report-hero-label {
+  display: block;
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.report-hero-total {
+  display: block;
+  font-size: 2.35rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  color: var(--text-main);
+  line-height: 1.1;
+}
+.report-hero-count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 0;
+}
+.report-hero-count-num {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: var(--letter-tight);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  color: var(--primary);
+  line-height: 1.1;
+}
+.report-hero-count-label {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Category badges — muted-but-clear colors for each expense type */
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--cat-other-bg);
+  color: var(--cat-other-fg);
+}
+.category-badge.cat-transport,
+.cat-select.cat-transport { background: var(--cat-transport-bg); color: var(--cat-transport-fg); }
+.category-badge.cat-meals,
+.cat-select.cat-meals { background: var(--cat-meals-bg); color: var(--cat-meals-fg); }
+.category-badge.cat-lodging,
+.cat-select.cat-lodging { background: var(--cat-lodging-bg); color: var(--cat-lodging-fg); }
+.category-badge.cat-office,
+.cat-select.cat-office { background: var(--cat-office-bg); color: var(--cat-office-fg); }
+.category-badge.cat-client,
+.cat-select.cat-client { background: var(--cat-client-bg); color: var(--cat-client-fg); }
+.category-badge.cat-other,
+.cat-select.cat-other { background: var(--cat-other-bg); color: var(--cat-other-fg); }
+
+.cat-select {
+  border-left-width: 4px;
+  border-left-style: solid;
+  font-weight: 600;
+}
+.cat-select.cat-transport { border-left-color: var(--cat-transport-accent); }
+.cat-select.cat-meals { border-left-color: var(--cat-meals-accent); }
+.cat-select.cat-lodging { border-left-color: var(--cat-lodging-accent); }
+.cat-select.cat-office { border-left-color: var(--cat-office-accent); }
+.cat-select.cat-client { border-left-color: var(--cat-client-accent); }
+.cat-select.cat-other { border-left-color: var(--cat-other-accent); }
+
+.ledger-table tr.cat-transport { box-shadow: inset 4px 0 0 var(--cat-transport-accent); }
+.ledger-table tr.cat-meals { box-shadow: inset 4px 0 0 var(--cat-meals-accent); }
+.ledger-table tr.cat-lodging { box-shadow: inset 4px 0 0 var(--cat-lodging-accent); }
+.ledger-table tr.cat-office { box-shadow: inset 4px 0 0 var(--cat-office-accent); }
+.ledger-table tr.cat-client { box-shadow: inset 4px 0 0 var(--cat-client-accent); }
+.ledger-table tr.cat-other { box-shadow: inset 4px 0 0 var(--cat-other-accent); }
+
 /* Receipts Grid */
 .receipts-grid {
   display: grid;
@@ -509,23 +736,31 @@ button {
   background: var(--bg-card);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
+  border-left: 5px solid var(--cat-accent, var(--primary));
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
-  transition: box-shadow var(--motion), border-color var(--motion);
+  transition: box-shadow var(--motion), border-color var(--motion), transform var(--motion);
   position: relative;
 }
 .receipt-card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
   border-color: var(--border-strong);
+  border-left-color: var(--cat-accent, var(--primary));
 }
+.receipt-card.cat-transport { --cat-accent: var(--cat-transport-accent); }
+.receipt-card.cat-meals { --cat-accent: var(--cat-meals-accent); }
+.receipt-card.cat-lodging { --cat-accent: var(--cat-lodging-accent); }
+.receipt-card.cat-office { --cat-accent: var(--cat-office-accent); }
+.receipt-card.cat-client { --cat-accent: var(--cat-client-accent); }
+.receipt-card.cat-other { --cat-accent: var(--cat-other-accent); }
 
 .receipt-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  padding: 12px 18px;
   background: var(--bg-muted);
   border-bottom: 1px solid var(--border);
 }
@@ -539,11 +774,22 @@ button {
   border-radius: var(--radius-sm);
 }
 
+.receipt-card-header .category-badge {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
 .receipt-type-badge {
   font-size: 0.75rem;
   font-weight: 600;
   padding: 2px 8px;
   border-radius: var(--radius-full);
+}
+.receipt-thumb-wrapper .receipt-type-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
 }
 .type-pdf {
   background: #fee2e2;
@@ -573,16 +819,16 @@ button {
 }
 
 .receipt-card-body {
-  padding: 14px;
+  padding: 16px 18px 18px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   flex: 1;
 }
 
 .receipt-merchant {
   font-weight: 700;
-  font-size: var(--font-lg);
+  font-size: 1.125rem;
   color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
@@ -1085,10 +1331,16 @@ button {
   font-weight: 600;
   gap: 3px;
   flex: 1;
-  height: 100%;
+  height: auto;
+  margin: 4px 2px;
+  padding: 6px 4px 5px;
+  border-radius: var(--radius-full);
+  min-width: 0;
 }
 .mobile-nav-item.active {
-  color: var(--primary);
+  color: var(--color-on-primary);
+  background: var(--primary);
+  box-shadow: 0 2px 8px rgb(79 70 229 / 0.35);
 }
 .mobile-nav-item svg {
   width: 22px;
@@ -1209,7 +1461,7 @@ button {
   }
   .mobile-nav-item {
     min-height: 44px;
-    padding: 8px 4px;
+    padding: 6px 6px 5px;
   }
 
   /* Leave the camera FAB hidden on phones. The full-width "Add Receipt" button
@@ -1220,7 +1472,18 @@ button {
     min-width: 0;
   }
   .view-title-group h2 {
-    font-size: 1.25rem;
+    font-size: 1.375rem;
+  }
+
+  .report-hero {
+    padding: 16px 16px 16px 22px;
+    margin-bottom: 18px;
+  }
+  .report-hero-total {
+    font-size: 1.85rem;
+  }
+  .report-hero-count-num {
+    font-size: 1.4rem;
   }
   .view-title-group p,
   .layout-desc,
@@ -1338,13 +1601,40 @@ button {
   --danger-border: #7f1d1d;
   --color-amount: #34d399;
 
-  --bg-main: #0b0f19;
-  --bg-card: #121826;
-  --bg-muted: #171e2e;
-  --bg-hover: #1c2436;
+  --bg-main: #080c18;
+  --bg-card: #141a2a;
+  --bg-muted: #1a2133;
+  --bg-hover: #222b40;
   --bg-input: #1a2233;
-  --bg-header: linear-gradient(180deg, #171e2e 0%, #121826 100%);
-  --bg-sidebar: #121826;
+  --bg-header: var(--header-band);
+  --bg-sidebar: #141a2a;
+  --header-band: linear-gradient(105deg, #1e1b4b 0%, #312e81 46%, #4338ca 100%);
+  --header-fg: #ffffff;
+  --header-fg-muted: rgba(255, 255, 255, 0.84);
+  --header-control-bg: rgba(255, 255, 255, 0.10);
+  --header-control-border: rgba(255, 255, 255, 0.24);
+  --header-control-hover: rgba(255, 255, 255, 0.20);
+  --btn-primary-bg: linear-gradient(180deg, #4f46e5 0%, #4338ca 100%);
+  --btn-primary-bg-hover: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%);
+
+  --cat-transport-bg: #1e3a5f;
+  --cat-transport-fg: #93c5fd;
+  --cat-transport-accent: #60a5fa;
+  --cat-meals-bg: #5c2e12;
+  --cat-meals-fg: #fdba74;
+  --cat-meals-accent: #fb923c;
+  --cat-lodging-bg: #134e4a;
+  --cat-lodging-fg: #5eead4;
+  --cat-lodging-accent: #2dd4bf;
+  --cat-office-bg: #1e1b4b;
+  --cat-office-fg: #a5b4fc;
+  --cat-office-accent: #818cf8;
+  --cat-client-bg: #831843;
+  --cat-client-fg: #f9a8d4;
+  --cat-client-accent: #f472b6;
+  --cat-other-bg: #1e293b;
+  --cat-other-fg: #cbd5e1;
+  --cat-other-accent: #94a3b8;
 
   --border: #243044;
   --border-strong: #334155;
@@ -1362,7 +1652,15 @@ button {
 
 /* A few components still need explicit dark tweaks beyond the tokens */
 [data-theme="dark"] .app-header {
-  box-shadow: 0 1px 0 rgb(165 180 252 / 0.08);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 0.45);
+}
+[data-theme="dark"] .btn-danger {
+  background: #dc2626;
+  color: #ffffff;
+}
+[data-theme="dark"] .stats-pill #headerTotal {
+  background: #ffffff;
+  color: #047857;
 }
 [data-theme="dark"] .layout-card.selected {
   border-color: var(--primary-dark);
