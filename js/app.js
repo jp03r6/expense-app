@@ -818,7 +818,7 @@ class ExpenseApp {
           </select>
         </td>
         <td>
-          <input type="number" step="0.01" class="table-input" value="${(parseFloat(r.amount) || 0).toFixed(2)}" data-field="amount" style="font-weight: 700; color: #047857;">
+          <input type="number" step="0.01" class="table-input table-amount" value="${(parseFloat(r.amount) || 0).toFixed(2)}" data-field="amount">
         </td>
         <td>
           <input type="text" class="table-input" value="${this._escape(r.notes || '')}" data-field="notes" placeholder="Notes...">
