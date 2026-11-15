@@ -962,3 +962,141 @@ button {
     display: none; /* FAB handles this */
   }
 }
+
+/* ==========================================================================
+   Dark Mode Theme System
+   ========================================================================== */
+
+[data-theme="dark"] {
+  --primary-light: #1e1b4b;
+  --primary-dark: #6366f1;
+  --accent: #22d3ee;
+  --success-light: #064e3b;
+  --warning: #f59e0b;
+  --danger-light: #450a0a;
+
+  --bg-main: #0b0f19;
+  --bg-card: #111827;
+  --bg-sidebar: #111827;
+  --border: #1f2937;
+  --border-focus: #6366f1;
+
+  --text-main: #f9fafb;
+  --text-muted: #9ca3af;
+  --text-light: #6b7280;
+}
+
+[data-theme="dark"] .btn-secondary {
+  background: #1f2937;
+  color: #f9fafb;
+  border-color: #374151;
+}
+[data-theme="dark"] .btn-secondary:hover {
+  background: #374151;
+  border-color: #4b5563;
+}
+[data-theme="dark"] .btn-icon:hover {
+  background: #1f2937;
+  color: #f9fafb;
+}
+[data-theme="dark"] .app-header {
+  background: #111827;
+  border-bottom-color: #1f2937;
+}
+[data-theme="dark"] .report-select {
+  background: #1f2937;
+  color: #f9fafb;
+  border-color: #374151;
+}
+[data-theme="dark"] .sync-badge {
+  background: #1f2937;
+  color: #9ca3af;
+}
+[data-theme="dark"] .receipt-card {
+  background: #111827;
+  border-color: #1f2937;
+}
+[data-theme="dark"] .receipt-card:hover {
+  border-color: #374151;
+}
+[data-theme="dark"] .receipt-card-header,
+[data-theme="dark"] .receipt-card-footer {
+  background: #161e2e;
+  border-color: #1f2937;
+}
+[data-theme="dark"] .tab-btn:hover {
+  background: #1f2937;
+  color: #f9fafb;
+}
+[data-theme="dark"] .badge-count {
+  background: #374151;
+  color: #f9fafb;
+}
+[data-theme="dark"] .empty-state {
+  background: #111827;
+  border-color: #374151;
+}
+[data-theme="dark"] .ledger-container {
+  background: #111827;
+  border-color: #1f2937;
+}
+[data-theme="dark"] .ledger-toolbar {
+  background: #161e2e;
+  border-bottom-color: #1f2937;
+}
+[data-theme="dark"] .ledger-table th {
+  background: #1a2234;
+  border-bottom-color: #1f2937;
+  color: #9ca3af;
+}
+[data-theme="dark"] .ledger-table td {
+  border-bottom-color: #1f2937;
+}
+[data-theme="dark"] .ledger-table tr:hover {
+  background: #161e2e;
+}
+[data-theme="dark"] .table-input:hover,
+[data-theme="dark"] .table-input:focus {
+  background: #1f2937;
+  border-color: #374151;
+  color: #f9fafb;
+}
+[data-theme="dark"] .pdf-settings-panel {
+  background: #111827;
+  border-color: #1f2937;
+}
+[data-theme="dark"] .layout-card {
+  border-color: #1f2937;
+  background: #111827;
+}
+[data-theme="dark"] .layout-card:hover {
+  background: #1a2234;
+  border-color: #374151;
+}
+[data-theme="dark"] .layout-card.selected {
+  border-color: #6366f1;
+  background: #1e1b4b;
+}
+[data-theme="dark"] .form-input {
+  background: #1f2937;
+  border-color: #374151;
+  color: #f9fafb;
+}
+[data-theme="dark"] .modal-card {
+  background: #111827;
+  border: 1px solid #1f2937;
+}
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer {
+  border-color: #1f2937;
+  background: #161e2e;
+}
+[data-theme="dark"] .dropzone {
+  background: #161e2e;
+  border-color: #4f46e5;
+}
+[data-theme="dark"] .mobile-nav-bar {
+  background: #111827;
+  border-top-color: #1f2937;
+}
+

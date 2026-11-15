@@ -34,6 +34,7 @@ class ExpenseApp {
 
     // 3. Bind UI Events
     this._bindEvents();
+    this.initTheme();
 
     // 4. Subscribe to Store updates
     window.store.subscribe((event, data) => {
@@ -46,6 +47,31 @@ class ExpenseApp {
     // 6. Setup Cloud Sync display
     const syncStatus = window.cloudSyncManager.getStatus();
     document.getElementById('displayRoomCode').textContent = `ROOM-${syncStatus.roomCode}`;
+  }
+
+  initTheme() {
+    const savedTheme = localStorage.getItem('expensesnap_theme') || 
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    this.applyTheme(savedTheme);
+
+    const toggleBtn = document.getElementById('btnThemeToggle');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme') || 'light';
+        const next = current === 'dark' ? 'light' : 'dark';
+        this.applyTheme(next);
+        localStorage.setItem('expensesnap_theme', next);
+        this.showToast(`Switched to ${next} mode`, 'info');
+      });
+    }
+  }
+
+  applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const icon = document.getElementById('themeIcon');
+    if (icon) {
+      icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
   }
 
   _bindEvents() {
