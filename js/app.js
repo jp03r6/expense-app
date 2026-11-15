@@ -637,6 +637,12 @@ class ExpenseApp {
     document.getElementById('ledgerTotal').textContent = totalFormatted;
     document.getElementById('ledgerCount').textContent = this.currentReceipts.length;
     document.getElementById('badgeReceiptCount').textContent = this.currentReceipts.length;
+    const heroTotal = document.getElementById('heroTotal');
+    const heroCount = document.getElementById('heroCount');
+    const heroLabel = document.getElementById('heroCountLabel');
+    if (heroTotal) heroTotal.textContent = totalFormatted;
+    if (heroCount) heroCount.textContent = this.currentReceipts.length;
+    if (heroLabel) heroLabel.textContent = this.currentReceipts.length === 1 ? 'receipt' : 'receipts';
 
     // 4. Render Receipts Grid
     this.renderReceiptsGrid();
@@ -661,7 +667,8 @@ class ExpenseApp {
 
     this.currentReceipts.forEach((r, idx) => {
       const card = document.createElement('div');
-      card.className = 'receipt-card';
+      const catSlug = this._categorySlug(r.category);
+      card.className = `receipt-card cat-${catSlug}`;
 
       const typeBadgeClass = r.type === 'pdf' ? 'type-pdf' : 'type-img';
       const typeLabel = r.type === 'pdf' ? 'PDF' : 'IMAGE';
@@ -669,9 +676,10 @@ class ExpenseApp {
       card.innerHTML = `
         <div class="receipt-card-header">
           <span class="receipt-num">ITEM #${idx + 1}</span>
-          <span class="receipt-type-badge ${typeBadgeClass}">${typeLabel}</span>
+          <span class="category-badge cat-${catSlug}">${this._escape(r.category || 'Other')}</span>
         </div>
         <div class="receipt-thumb-wrapper" title="Click to inspect receipt">
+          <span class="receipt-type-badge ${typeBadgeClass}">${typeLabel}</span>
           <img class="receipt-thumb" src="${r.thumbnailDataUrl || r.dataUrl}" alt="${r.merchant}">
         </div>
         <div class="receipt-card-body">
@@ -680,7 +688,6 @@ class ExpenseApp {
             <span>📅 ${r.date || 'No Date'}</span>
             <span class="receipt-amount">$${(parseFloat(r.amount) || 0).toFixed(2)}</span>
           </div>
-          <div style="font-size: 0.75rem; color: var(--text-muted);">${this._escape(r.category)}</div>
         </div>
         <div class="receipt-card-footer">
           <div class="card-actions">
@@ -788,6 +795,8 @@ class ExpenseApp {
 
     this.currentReceipts.forEach((r, idx) => {
       const tr = document.createElement('tr');
+      const catSlug = this._categorySlug(r.category);
+      tr.className = `cat-${catSlug}`;
       tr.innerHTML = `
         <td style="font-weight: 700; color: var(--primary); text-align: center;">${idx + 1}</td>
         <td>
@@ -800,7 +809,7 @@ class ExpenseApp {
           <input type="text" class="table-input" value="${this._escape(r.merchant)}" data-field="merchant">
         </td>
         <td>
-          <select class="table-input" data-field="category">
+          <select class="table-input cat-select cat-${catSlug}" data-field="category">
             <option value="Transportation" ${r.category === 'Transportation' ? 'selected' : ''}>Transportation</option>
             <option value="Meals & Entertainment" ${r.category === 'Meals & Entertainment' ? 'selected' : ''}>Meals & Entertainment</option>
             <option value="Travel & Lodging" ${r.category === 'Travel & Lodging' ? 'selected' : ''}>Travel & Lodging</option>
@@ -818,7 +827,7 @@ class ExpenseApp {
           </select>
         </td>
         <td>
-          <input type="number" step="0.01" class="table-input" value="${(parseFloat(r.amount) || 0).toFixed(2)}" data-field="amount" style="font-weight: 700; color: #047857;">
+          <input type="number" step="0.01" class="table-input table-amount" value="${(parseFloat(r.amount) || 0).toFixed(2)}" data-field="amount">
         </td>
         <td>
           <input type="text" class="table-input" value="${this._escape(r.notes || '')}" data-field="notes" placeholder="Notes...">
@@ -1112,6 +1121,18 @@ class ExpenseApp {
       toast.style.transition = 'opacity 0.3s ease';
       setTimeout(() => toast.remove(), 300);
     }, 3800);
+  }
+
+  _categorySlug(category) {
+    const map = {
+      'Transportation': 'transport',
+      'Meals & Entertainment': 'meals',
+      'Travel & Lodging': 'lodging',
+      'Office Supplies': 'office',
+      'Client Meeting': 'client',
+      'Other': 'other'
+    };
+    return map[category] || 'other';
   }
 
   _escape(str) {

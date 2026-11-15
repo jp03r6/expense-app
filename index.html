@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>ExpenseSnap - Receipt Compiler & Tracker</title>
   
   <!-- PWA Meta Tags -->
@@ -96,6 +96,17 @@
           <button id="btnAddReceipt" class="btn btn-primary">
             <span>＋ Add Receipt or PDF</span>
           </button>
+        </div>
+      </div>
+
+      <div class="report-hero" id="reportHero">
+        <div class="report-hero-copy">
+          <span class="report-hero-label">Report total</span>
+          <span class="report-hero-total" id="heroTotal">$0.00</span>
+        </div>
+        <div class="report-hero-count">
+          <span class="report-hero-count-num" id="heroCount">0</span>
+          <span class="report-hero-count-label" id="heroCountLabel">receipts</span>
         </div>
       </div>
 
@@ -276,7 +287,7 @@
           </div>
 
           <!-- Room Code Details & Manual Input -->
-          <div style="display: flex; flex-direction: column; gap: 14px; background: #f8fafc; padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--border); margin-top: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 14px; background: var(--bg-muted); padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--border); margin-top: 16px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
               <div>
                 <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Active Pairing Code</span>
@@ -284,7 +295,7 @@
               </div>
               <button id="btnNewRoomCode" class="btn btn-secondary btn-sm" title="Generate a fresh room code">🔄 New Room</button>
             </div>
-            <div style="display: flex; gap: 10px;">
+            <div class="join-room-row">
               <input type="text" id="inputJoinRoom" class="form-input" placeholder="Or enter room code (e.g. EXP-W7K9)" style="flex: 1;">
               <button id="btnJoinRoom" class="btn btn-primary btn-sm">Join Room</button>
             </div>
@@ -363,7 +374,7 @@
         </div>
 
         <!-- Metadata Form -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        <div class="form-row">
           <div class="form-group">
             <label for="inputDate">Date</label>
             <input type="date" id="inputDate" class="form-input" required>
@@ -379,7 +390,7 @@
           <input type="text" id="inputMerchant" class="form-input" placeholder="e.g. Uber, Delta, Starbucks" required>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        <div class="form-row">
           <div class="form-group">
             <label for="inputCategory">Category</label>
             <select id="inputCategory" class="form-input">
