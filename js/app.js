@@ -254,7 +254,7 @@ class ExpenseApp {
     });
 
     // Add Receipt Buttons
-    const openAddModal = () => {
+    const openAddModal = async () => {
       this.editingReceiptId = null;
       this.stagedReceiptData = null;
       document.getElementById('modalReceiptTitle').textContent = 'Add Receipt or PDF';
@@ -266,6 +266,7 @@ class ExpenseApp {
       document.getElementById('inputNotes').value = '';
       this._fillLabeledSelect('inputCategory', window.expenseLabels.CATEGORIES, 'Meals', window.expenseLabels.canonicalCategory);
       this._fillLabeledSelect('inputPayment', window.expenseLabels.PAYMENTS, 'Corporate Card', window.expenseLabels.canonicalPayment);
+      await this._fillReportSelect(window.store.activeReportId);
       this.openModal('modalAddReceipt');
     };
 
@@ -342,6 +343,7 @@ class ExpenseApp {
       const category = document.getElementById('inputCategory').value;
       const paymentMethod = document.getElementById('inputPayment').value;
       const notes = document.getElementById('inputNotes').value.trim();
+      const reportId = document.getElementById('inputReport').value || window.store.activeReportId;
 
       if (!this.stagedReceiptData && !this.editingReceiptId) {
         this.showToast('Please take a photo or upload a receipt file first.', 'error');
@@ -350,16 +352,24 @@ class ExpenseApp {
 
       if (this.editingReceiptId) {
         // Update existing receipt
+        const previous = await window.store.getReceipt(this.editingReceiptId);
         const updated = await window.store.updateReceipt(this.editingReceiptId, {
           date,
           amount,
           merchant,
           category,
           paymentMethod,
-          notes
+          notes,
+          reportId
         });
         if (updated) window.cloudSyncManager.broadcastReceiptUpdated(updated);
-        this.showToast('Receipt updated', 'success');
+        if (previous && reportId && previous.reportId !== reportId) {
+          const dest = await window.store.getReport(reportId);
+          const destTitle = dest && dest.title ? dest.title : 'the selected report';
+          this.showToast(`Receipt moved to ${destTitle}`, 'success');
+        } else {
+          this.showToast('Receipt updated', 'success');
+        }
       } else {
         // Add new receipt
         const added = await window.store.addReceipt({
@@ -369,7 +379,8 @@ class ExpenseApp {
           merchant,
           category,
           paymentMethod,
-          notes
+          notes,
+          reportId
         });
         if (added) window.cloudSyncManager.broadcastReceiptAdded(added);
         this.showToast('Receipt added to report', 'success');
@@ -759,7 +770,7 @@ class ExpenseApp {
       });
 
       // Edit Details
-      card.querySelector('.btn-edit').addEventListener('click', (e) => {
+      card.querySelector('.btn-edit').addEventListener('click', async (e) => {
         e.stopPropagation();
         this.editingReceiptId = r.id;
         document.getElementById('modalReceiptTitle').textContent = `Edit Receipt #${idx + 1}`;
@@ -769,6 +780,7 @@ class ExpenseApp {
         this._fillLabeledSelect('inputCategory', window.expenseLabels.CATEGORIES, r.category, window.expenseLabels.canonicalCategory);
         this._fillLabeledSelect('inputPayment', window.expenseLabels.PAYMENTS, r.paymentMethod, window.expenseLabels.canonicalPayment);
         document.getElementById('inputNotes').value = r.notes || '';
+        await this._fillReportSelect(r.reportId || window.store.activeReportId);
 
         document.getElementById('uploadPreviewImg').src = r.dataUrl || r.thumbnailDataUrl;
         document.getElementById('uploadPreviewSection').style.display = 'flex';
@@ -1196,6 +1208,29 @@ class ExpenseApp {
 
   _categorySlug(category) {
     return window.expenseLabels.categorySlug(category);
+  }
+
+  async _fillReportSelect(selectedId) {
+    const selectEl = document.getElementById('inputReport');
+    if (!selectEl) return;
+    const reports = await window.store.getAllReports();
+    reports.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0) || (a.title || '').localeCompare(b.title || ''));
+    const chosen = selectedId || window.store.activeReportId;
+    selectEl.innerHTML = '';
+    reports.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = r.title;
+      if (r.id === chosen) opt.selected = true;
+      selectEl.appendChild(opt);
+    });
+    if (chosen && !reports.some(r => r.id === chosen)) {
+      const opt = document.createElement('option');
+      opt.value = chosen;
+      opt.textContent = 'Unknown report';
+      opt.selected = true;
+      selectEl.appendChild(opt);
+    }
   }
 
   _fillLabeledSelect(selectId, options, current, canonicalize) {

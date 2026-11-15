@@ -1055,6 +1055,12 @@ button {
   gap: 14px;
 }
 
+/* Report picker on the add/edit receipt form — full width, 44px tap target */
+#inputReport {
+  width: 100%;
+  min-height: 44px;
+}
+
 .join-room-row {
   display: flex;
   gap: 10px;

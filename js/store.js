@@ -307,19 +307,52 @@ class ExpenseStore {
     const receipt = await this.getReceipt(receiptId);
     if (!receipt) return null;
 
+    const oldReportId = receipt.reportId;
     const updated = {
       ...receipt,
       ...updates,
       updatedAt: Date.now()
     };
+    const newReportId = updated.reportId;
+    const moved = !!(newReportId && oldReportId && newReportId !== oldReportId);
 
-    await new Promise((resolve, reject) => {
-      const tx = this.db.transaction('receipts', 'readwrite');
-      const store = tx.objectStore('receipts');
-      const req = store.put(updated);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
+    if (moved) {
+      const oldReport = await this.getReport(oldReportId);
+      const newReport = await this.getReport(newReportId);
+
+      await new Promise((resolve, reject) => {
+        const tx = this.db.transaction(['receipts', 'reports'], 'readwrite');
+        tx.objectStore('receipts').put(updated);
+
+        if (oldReport) {
+          if (oldReport.receiptOrder) {
+            oldReport.receiptOrder = oldReport.receiptOrder.filter(id => id !== receiptId);
+          }
+          oldReport.updatedAt = Date.now();
+          tx.objectStore('reports').put(oldReport);
+        }
+
+        if (newReport) {
+          if (!newReport.receiptOrder) newReport.receiptOrder = [];
+          if (!newReport.receiptOrder.includes(receiptId)) {
+            newReport.receiptOrder.push(receiptId);
+          }
+          newReport.updatedAt = Date.now();
+          tx.objectStore('reports').put(newReport);
+        }
+
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } else {
+      await new Promise((resolve, reject) => {
+        const tx = this.db.transaction('receipts', 'readwrite');
+        const store = tx.objectStore('receipts');
+        const req = store.put(updated);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
 
     this.notify('receipt:updated', updated);
     return updated;
