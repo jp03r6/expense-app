@@ -8,7 +8,12 @@
       "**/node_modules/**",
       "server.py",
       "start.bat",
-      "download_vendors.py"
+      "download_vendors.py",
+      ".git",
+      ".git/**",
+      "**/.git/**",
+      ".firebaserc",
+      "README.md"
     ],
     "headers": [
       {
