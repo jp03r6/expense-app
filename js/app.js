@@ -238,6 +238,7 @@ class ExpenseApp {
     // Cancel, the X, a tap outside the card, and the Escape key keep working
     // even if some later setup step fails.
     this._bindModalClosing();
+    this._watchPreviewSize();
 
     // Navigation Tabs (Desktop & Mobile)
     document.querySelectorAll('[data-tab]').forEach(btn => {
@@ -670,7 +671,7 @@ class ExpenseApp {
 
   async refreshAll() {
     // 1. Refresh Reports Dropdown
-    const reports = await window.store.getAllReports();
+    const reports = window.sortReports(await window.store.getAllReports());
     const activeRep = await window.store.getActiveReport();
     this.currentReport = activeRep;
 
@@ -1065,6 +1066,34 @@ class ExpenseApp {
     }
   }
 
+  // Width available for the PDF page inside the grey preview box
+  _previewAvailableWidth() {
+    const panel = document.getElementById('pdfPreviewPanel');
+    if (!panel || panel.clientWidth === 0) return 600;
+    const cs = getComputedStyle(panel);
+    const pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+    return Math.max(120, panel.clientWidth - pad);
+  }
+
+  // Re-fit the preview when the screen size or orientation changes (debounced)
+  _watchPreviewSize() {
+    const panel = document.getElementById('pdfPreviewPanel');
+    if (!panel) return;
+    const refit = () => {
+      clearTimeout(this.previewResizeTimer);
+      this.previewResizeTimer = setTimeout(() => {
+        if (!this.previewPdfDoc || this.activeTab !== 'tab-pdf') return;
+        if (Math.abs(this._previewAvailableWidth() - (this.previewRenderedWidth || 0)) < 2) return;
+        this.renderPreviewPage(this.previewCurrentPage);
+      }, 200);
+    };
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(refit).observe(panel);
+    }
+    window.addEventListener('resize', refit);
+    window.addEventListener('orientationchange', refit);
+  }
+
   async renderPreviewPage(pageNum, requestId = this.previewRequestId) {
     if (!this.previewPdfDoc) return;
     if (requestId !== this.previewRequestId) return;
@@ -1075,10 +1104,19 @@ class ExpenseApp {
     const canvas = document.getElementById('pdfPreviewCanvas');
     const ctx = canvas.getContext('2d');
 
-    // Scale to fit nicely in panel
-    const viewport = page.getViewport({ scale: 1.2 });
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
+    // Fit the whole page to the width of the preview box (never wider than
+    // 1.2x the PDF's own size), keeping its shape. Draw at the screen's pixel
+    // density so text stays sharp, then show it at the fitted CSS size.
+    const base = page.getViewport({ scale: 1 });
+    const fitScale = Math.min(1.2, this._previewAvailableWidth() / base.width);
+    const cssWidth = Math.floor(base.width * fitScale);
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const viewport = page.getViewport({ scale: fitScale * dpr });
+    canvas.width = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+    canvas.style.width = cssWidth + 'px';
+    canvas.style.height = 'auto'; // follows the width, keeping the page's shape
+    this.previewRenderedWidth = this._previewAvailableWidth();
 
     await page.render({
       canvasContext: ctx,
@@ -1257,8 +1295,7 @@ class ExpenseApp {
   async _fillReportSelect(selectedId) {
     const selectEl = document.getElementById('inputReport');
     if (!selectEl) return;
-    const reports = await window.store.getAllReports();
-    reports.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0) || (a.title || '').localeCompare(b.title || ''));
+    const reports = window.sortReports(await window.store.getAllReports());
     const chosen = selectedId || window.store.activeReportId;
     selectEl.innerHTML = '';
     reports.forEach(r => {

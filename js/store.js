@@ -33,20 +33,17 @@ class ExpenseStore {
 
       request.onsuccess = async (e) => {
         this.db = e.target.result;
-        // Load active report ID
-        const activeMeta = await this.getMeta('activeReportId');
-        if (activeMeta && activeMeta.value) {
-          this.activeReportId = activeMeta.value;
-        } else {
-          // Check if any report exists, if not create default
-          const reports = await this.getAllReports();
-          if (reports.length === 0) {
-            const defaultReport = await this.createReport('November Expense Report');
-            this.activeReportId = defaultReport.id;
-          } else {
-            this.activeReportId = reports[0].id;
-          }
-          await this.setMeta('activeReportId', this.activeReportId);
+        try {
+          // Make sure exactly one starter report exists. The check and the
+          // create run inside ONE database transaction, so two windows starting
+          // at the same moment can no longer both create "November Expense Report".
+          await this._ensureDefaultReport();
+          // Tidy up empty copies left behind by that old race (never touches
+          // a report that has receipts).
+          await this.removeEmptyDuplicateReports();
+          await this._resolveActiveReport();
+        } catch (err) {
+          console.error('Store startup error:', err);
         }
         resolve(this);
       };
@@ -56,6 +53,130 @@ class ExpenseStore {
         reject(e);
       };
     });
+  }
+
+  _newReportRecord(title, options = {}) {
+    return {
+      id: 'rep_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+      title: title || 'New Expense Report',
+      submitterName: options.submitterName || '',
+      department: options.department || '',
+      currency: options.currency || 'USD',
+      receiptOrder: [],
+      pdfSettings: {
+        layout: options.layout || 'full', // 'full', 'two_up', 'grid'
+        addCover: options.addCover !== undefined ? options.addCover : true
+      },
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+  }
+
+  // Creates the starter report only if the database has no reports at all.
+  // Count + add happen in one readwrite transaction; IndexedDB runs
+  // overlapping readwrite transactions one at a time, even across tabs.
+  _ensureDefaultReport() {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(['reports', 'meta'], 'readwrite');
+      const reports = tx.objectStore('reports');
+      let created = null;
+      const countReq = reports.count();
+      countReq.onsuccess = () => {
+        if (countReq.result === 0) {
+          created = this._newReportRecord('November Expense Report');
+          reports.add(created);
+          tx.objectStore('meta').put({ key: 'activeReportId', value: created.id });
+        }
+      };
+      tx.oncomplete = () => resolve(created);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  }
+
+  /**
+   * Removes EMPTY duplicate reports: a report is removed only when another
+   * report has the same title (ignoring case/spaces) and the removed one has
+   * zero receipts. In each same-title group we keep the oldest report that
+   * has receipts (or the oldest one if none do). Safe to run any number of
+   * times. Returns the ids it removed.
+   */
+  removeEmptyDuplicateReports() {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(['reports', 'receipts', 'meta'], 'readwrite');
+      const reportStore = tx.objectStore('reports');
+      const receiptIndex = tx.objectStore('receipts').index('reportId');
+      const metaStore = tx.objectStore('meta');
+      const removed = [];
+
+      const allReq = reportStore.getAll();
+      allReq.onsuccess = () => {
+        const reports = sortReports(allReq.result || []);
+        const groups = new Map();
+        reports.forEach(r => {
+          const key = String(r.title || '').trim().toLowerCase();
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(r);
+        });
+        const dupGroups = [...groups.values()].filter(g => g.length > 1);
+        if (dupGroups.length === 0) return;
+
+        // Count receipts for every report in a duplicate group
+        const counts = new Map();
+        let pending = 0;
+        dupGroups.flat().forEach(r => {
+          pending++;
+          const req = receiptIndex.count(r.id);
+          req.onsuccess = () => {
+            counts.set(r.id, req.result);
+            if (--pending === 0) decide();
+          };
+        });
+
+        const decide = () => {
+          const replacement = new Map(); // removed id -> kept id
+          dupGroups.forEach(group => {
+            const keeper = group.find(r => counts.get(r.id) > 0) || group[0];
+            group.forEach(r => {
+              if (r.id !== keeper.id && counts.get(r.id) === 0) {
+                reportStore.delete(r.id);
+                removed.push(r.id);
+                replacement.set(r.id, keeper.id);
+              }
+            });
+          });
+          if (removed.length === 0) return;
+          const metaReq = metaStore.get('activeReportId');
+          metaReq.onsuccess = () => {
+            const current = metaReq.result && metaReq.result.value;
+            if (current && replacement.has(current)) {
+              metaStore.put({ key: 'activeReportId', value: replacement.get(current) });
+            }
+          };
+        };
+      };
+
+      tx.oncomplete = () => {
+        if (removed.length) console.info('Removed empty duplicate reports:', removed);
+        resolve(removed);
+      };
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  }
+
+  // Active report must point at a report that exists; otherwise fall back
+  // to the oldest report.
+  async _resolveActiveReport() {
+    const activeMeta = await this.getMeta('activeReportId');
+    const reports = sortReports(await this.getAllReports());
+    const wanted = activeMeta && activeMeta.value;
+    let chosen = reports.find(r => r.id === wanted);
+    if (!chosen) chosen = reports[0] || null;
+    this.activeReportId = chosen ? chosen.id : null;
+    if (chosen && chosen.id !== wanted) {
+      await this.setMeta('activeReportId', chosen.id);
+    }
   }
 
   // --- Pub / Sub Event System ---
@@ -130,20 +251,7 @@ class ExpenseStore {
   }
 
   async createReport(title, options = {}) {
-    const report = {
-      id: 'rep_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-      title: title || 'New Expense Report',
-      submitterName: options.submitterName || '',
-      department: options.department || '',
-      currency: options.currency || 'USD',
-      receiptOrder: [],
-      pdfSettings: {
-        layout: options.layout || 'full', // 'full', 'two_up', 'grid'
-        addCover: options.addCover !== undefined ? options.addCover : true
-      },
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
+    const report = this._newReportRecord(title, options);
 
     await new Promise((resolve, reject) => {
       const tx = this.db.transaction('reports', 'readwrite');
@@ -547,6 +655,13 @@ class ExpenseStore {
     return bytes.buffer;
   }
 }
+
+// Oldest first (by creation time, then title) so every report list matches
+function sortReports(reports) {
+  return [...reports].sort((a, b) =>
+    (a.createdAt || 0) - (b.createdAt || 0) || String(a.title || '').localeCompare(String(b.title || '')));
+}
+window.sortReports = sortReports;
 
 // Global store instance
 window.store = new ExpenseStore();
