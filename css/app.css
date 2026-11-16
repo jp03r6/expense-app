@@ -1277,6 +1277,12 @@ button {
   border-radius: 4px;
 }
 
+#pdfPreviewCanvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
 .pdf-preview-updating {
   position: absolute;
   inset: 0;
