@@ -6,6 +6,9 @@ class ExpenseApp {
   constructor() {
     this.currentReceipts = [];
     this.currentReport = null;
+    this.allReceipts = [];
+    // Date range used to build the PDF report. preset: this_month | last_month | last_90 | custom | month
+    this.dateRange = { preset: 'this_month', month: null };
     this.selectedLayout = 'full';
     this.activeTab = 'tab-receipts';
     
@@ -248,32 +251,16 @@ class ExpenseApp {
       });
     });
 
-    // Report Selector Dropdown
-    const reportSelect = document.getElementById('reportSelect');
-    reportSelect.addEventListener('change', async (e) => {
-      await window.store.setActiveReport(e.target.value);
-    });
+    // Date range picker on the PDF tab
+    this._bindDateRange();
 
-    // New Report Modals
-    document.getElementById('btnNewReport').addEventListener('click', () => {
-      this.openModal('modalNewReport');
-    });
-
-    document.getElementById('btnCreateReportSubmit').addEventListener('click', async () => {
-      const titleInput = document.getElementById('inputReportTitle');
-      const submitterInput = document.getElementById('inputReportSubmitter');
-      if (!titleInput.value.trim()) {
-        this.showToast('Please enter a report title', 'error');
-        return;
-      }
-      const newRep = await window.store.createReport(titleInput.value.trim(), {
-        submitterName: submitterInput.value.trim()
-      });
-      await window.store.setActiveReport(newRep.id);
-      titleInput.value = '';
-      submitterInput.value = '';
-      this.closeModal('modalNewReport');
-      this.showToast('Report created successfully!', 'success');
+    // Remember submitter name and department between visits
+    ['pdfSubmitterName', 'pdfDepartment'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const saved = localStorage.getItem('expensesnap_' + id);
+      if (saved) el.value = saved;
+      el.addEventListener('input', () => localStorage.setItem('expensesnap_' + id, el.value));
     });
 
     // Add Receipt Buttons
@@ -289,7 +276,6 @@ class ExpenseApp {
       document.getElementById('inputNotes').value = '';
       this._fillLabeledSelect('inputCategory', window.expenseLabels.CATEGORIES, 'Meals', window.expenseLabels.canonicalCategory);
       this._fillLabeledSelect('inputPayment', window.expenseLabels.PAYMENTS, 'Corporate Card', window.expenseLabels.canonicalPayment);
-      await this._fillReportSelect(window.store.activeReportId);
       this.openModal('modalAddReceipt');
     };
 
@@ -369,7 +355,6 @@ class ExpenseApp {
       const category = document.getElementById('inputCategory').value;
       const paymentMethod = document.getElementById('inputPayment').value;
       const notes = document.getElementById('inputNotes').value.trim();
-      const reportId = document.getElementById('inputReport').value || window.store.activeReportId;
 
       if (!this.stagedReceiptData && !this.editingReceiptId) {
         this.showToast('Please take a photo or upload a receipt file first.', 'error');
@@ -378,24 +363,16 @@ class ExpenseApp {
 
       if (this.editingReceiptId) {
         // Update existing receipt
-        const previous = await window.store.getReceipt(this.editingReceiptId);
         const updated = await window.store.updateReceipt(this.editingReceiptId, {
           date,
           amount,
           merchant,
           category,
           paymentMethod,
-          notes,
-          reportId
+          notes
         });
         if (updated) window.cloudSyncManager.broadcastReceiptUpdated(updated);
-        if (previous && reportId && previous.reportId !== reportId) {
-          const dest = await window.store.getReport(reportId);
-          const destTitle = dest && dest.title ? dest.title : 'the selected report';
-          this.showToast(`Receipt moved to ${destTitle}`, 'success');
-        } else {
-          this.showToast('Receipt updated', 'success');
-        }
+        this.showToast('Receipt updated', 'success');
       } else {
         // Add new receipt
         const added = await window.store.addReceipt({
@@ -406,10 +383,12 @@ class ExpenseApp {
           category,
           paymentMethod,
           notes,
-          reportId
+          // Receipts are one list now; the stored reportId just keeps older
+          // versions and sync working.
+          reportId: window.store.activeReportId
         });
         if (added) window.cloudSyncManager.broadcastReceiptAdded(added);
-        this.showToast('Receipt added to report', 'success');
+        this.showToast('Receipt saved', 'success');
       }
 
       this.closeModal('modalAddReceipt');
@@ -423,7 +402,7 @@ class ExpenseApp {
     // Spreadsheet Companion: 1-Click Copy for Excel
     document.getElementById('btnCopyExcel').addEventListener('click', async () => {
       try {
-        const res = await window.spreadsheetHelper.copyTableForExcel(this.currentReceipts, true);
+        const res = await window.spreadsheetHelper.copyTableForExcel(this._receiptsInRange(this._computeRange()), true);
         this.showToast(`✅ Copied ${res.count} rows to clipboard! Just press Ctrl+V in your company Excel sheet.`, 'success');
       } catch (err) {
         this.showToast('Failed to copy: ' + err.message, 'error');
@@ -433,7 +412,8 @@ class ExpenseApp {
     // Spreadsheet Companion: Export .xlsx
     document.getElementById('btnExportXlsx').addEventListener('click', () => {
       try {
-        window.spreadsheetHelper.exportToExcel(this.currentReport, this.currentReceipts);
+        const range = this._computeRange();
+        window.spreadsheetHelper.exportToExcel(this._exportMeta(range), this._receiptsInRange(range));
         this.showToast('Excel workbook downloaded', 'success');
       } catch (err) {
         this.showToast('Export failed: ' + err.message, 'error');
@@ -443,7 +423,8 @@ class ExpenseApp {
     // Spreadsheet Companion: Export CSV
     document.getElementById('btnExportCsv').addEventListener('click', () => {
       try {
-        window.spreadsheetHelper.exportToCsv(this.currentReport, this.currentReceipts);
+        const range = this._computeRange();
+        window.spreadsheetHelper.exportToCsv(this._exportMeta(range), this._receiptsInRange(range));
         this.showToast('CSV downloaded', 'success');
       } catch (err) {
         this.showToast('Export failed: ' + err.message, 'error');
@@ -586,6 +567,12 @@ class ExpenseApp {
       view.classList.toggle('active', view.id === tabId);
     });
 
+    // The PDF and Ledger tabs share ONE "Which receipts?" card: move it into
+    // the tab being opened so both always show the same date range.
+    const slot = document.querySelector(`[data-range-slot="${tabId}"]`);
+    const rangeCard = document.getElementById('dateRangeCard');
+    if (slot && rangeCard && rangeCard.parentElement !== slot) slot.appendChild(rangeCard);
+
     // If PDF tab selected, trigger preview refresh
     if (tabId === 'tab-pdf') {
       this.schedulePdfPreviewRefresh(true);
@@ -670,30 +657,16 @@ class ExpenseApp {
   }
 
   async refreshAll() {
-    // 1. Refresh Reports Dropdown
-    const reports = window.sortReports(await window.store.getAllReports());
-    const activeRep = await window.store.getActiveReport();
-    this.currentReport = activeRep;
-
-    const reportSelect = document.getElementById('reportSelect');
-    reportSelect.innerHTML = '';
-    reports.forEach(r => {
-      const opt = document.createElement('option');
-      opt.value = r.id;
-      opt.textContent = r.title;
-      if (activeRep && r.id === activeRep.id) opt.selected = true;
-      reportSelect.appendChild(opt);
-    });
-
-    if (!activeRep) return;
-
-    // Submitter Name prefill
-    if (activeRep.submitterName) {
-      document.getElementById('pdfSubmitterName').value = activeRep.submitterName;
+    // Receipts are one list, newest first. Report folders still exist in the
+    // database (nothing is deleted) but are no longer used to group receipts.
+    this.currentReport = await window.store.getActiveReport();
+    this.allReceipts = await window.store.getAllReceipts();
+    const nameEl = document.getElementById('pdfSubmitterName');
+    if (nameEl && !nameEl.value && this.currentReport && this.currentReport.submitterName) {
+      nameEl.value = this.currentReport.submitterName;
     }
-
-    // 2. Refresh Receipts
-    this.currentReceipts = await window.store.getReceiptsForReport(activeRep.id);
+    this.currentReceipts = [...this.allReceipts].sort((a, b) =>
+      String(b.date || '').localeCompare(String(a.date || '')) || (b.createdAt || 0) - (a.createdAt || 0));
 
     // 3. Calculate Totals
     let total = 0;
@@ -703,8 +676,6 @@ class ExpenseApp {
 
     const totalFormatted = `$${total.toFixed(2)}`;
     document.getElementById('headerTotal').textContent = totalFormatted;
-    document.getElementById('ledgerTotal').textContent = totalFormatted;
-    document.getElementById('ledgerCount').textContent = this.currentReceipts.length;
     document.getElementById('badgeReceiptCount').textContent = this.currentReceipts.length;
     const heroTotal = document.getElementById('heroTotal');
     const heroCount = document.getElementById('heroCount');
@@ -718,6 +689,10 @@ class ExpenseApp {
 
     // 5. Render Spreadsheet Ledger Table
     this.renderLedgerTable();
+
+    // 6. Date range picker (month shortcuts, count and total) + preview
+    this.renderDateRange();
+    if (this.activeTab === 'tab-pdf') this.schedulePdfPreviewRefresh(false);
   }
 
   renderReceiptsGrid() {
@@ -760,8 +735,6 @@ class ExpenseApp {
         </div>
         <div class="receipt-card-footer">
           <div class="card-actions">
-            <button class="btn btn-secondary btn-sm btn-icon btn-move-up" title="Move Up" ${idx === 0 ? 'disabled' : ''}>▲</button>
-            <button class="btn btn-secondary btn-sm btn-icon btn-move-down" title="Move Down" ${idx === this.currentReceipts.length - 1 ? 'disabled' : ''}>▼</button>
             <button class="btn btn-secondary btn-sm btn-icon btn-quick-rotate" title="Rotate 90°">🔄</button>
           </div>
           <div class="card-actions">
@@ -792,28 +765,6 @@ class ExpenseApp {
         this.showToast('Receipt rotated 90°', 'info');
       });
 
-      // Move Up
-      card.querySelector('.btn-move-up').addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (idx > 0) {
-          const ids = this.currentReceipts.map(item => item.id);
-          [ids[idx - 1], ids[idx]] = [ids[idx], ids[idx - 1]];
-          await window.store.setReceiptOrder(this.currentReport.id, ids);
-          window.cloudSyncManager.broadcastReceiptsReordered(this.currentReport.id, ids);
-        }
-      });
-
-      // Move Down
-      card.querySelector('.btn-move-down').addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (idx < this.currentReceipts.length - 1) {
-          const ids = this.currentReceipts.map(item => item.id);
-          [ids[idx + 1], ids[idx]] = [ids[idx], ids[idx + 1]];
-          await window.store.setReceiptOrder(this.currentReport.id, ids);
-          window.cloudSyncManager.broadcastReceiptsReordered(this.currentReport.id, ids);
-        }
-      });
-
       // Edit Details
       card.querySelector('.btn-edit').addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -825,7 +776,6 @@ class ExpenseApp {
         this._fillLabeledSelect('inputCategory', window.expenseLabels.CATEGORIES, r.category, window.expenseLabels.canonicalCategory);
         this._fillLabeledSelect('inputPayment', window.expenseLabels.PAYMENTS, r.paymentMethod, window.expenseLabels.canonicalPayment);
         document.getElementById('inputNotes').value = r.notes || '';
-        await this._fillReportSelect(r.reportId || window.store.activeReportId);
 
         document.getElementById('uploadPreviewImg').src = r.dataUrl || r.thumbnailDataUrl;
         document.getElementById('uploadPreviewSection').style.display = 'flex';
@@ -852,18 +802,32 @@ class ExpenseApp {
     const tbody = document.getElementById('ledgerTableBody');
     tbody.innerHTML = '';
 
-    if (this.currentReceipts.length === 0) {
+    // Same date range as the PDF tab, oldest first
+    const range = this._computeRange();
+    const rows = this._receiptsInRange(range);
+    const total = rows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+    document.getElementById('ledgerCount').textContent = rows.length;
+    document.getElementById('ledgerTotal').textContent = `$${total.toFixed(2)}`;
+    ['btnCopyExcel', 'btnExportXlsx', 'btnExportCsv'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.disabled = rows.length === 0;
+    });
+
+    if (rows.length === 0) {
+      const msg = this.allReceipts.length === 0
+        ? 'No receipts added yet. Add receipts to automatically generate your spreadsheet.'
+        : `No receipts dated ${this._escape(range.label)}. Pick another range above.`;
       tbody.innerHTML = `
         <tr>
-          <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 30px;">
-            No receipts added yet. Add receipts to automatically generate your spreadsheet.
+          <td colspan="9" class="ledger-empty" style="text-align: center; color: var(--text-muted); padding: 30px;">
+            ${msg}
           </td>
         </tr>
       `;
       return;
     }
 
-    this.currentReceipts.forEach((r, idx) => {
+    rows.forEach((r, idx) => {
       const tr = document.createElement('tr');
       const catSlug = this._categorySlug(r.category);
       tr.className = `cat-${catSlug}`;
@@ -958,8 +922,10 @@ class ExpenseApp {
   }
 
   async compileAndDownloadPdf() {
-    if (this.currentReceipts.length === 0) {
-      this.showToast('No receipts to compile.', 'error');
+    const range = this._computeRange();
+    const receipts = this._receiptsInRange(range);
+    if (receipts.length === 0) {
+      this.showToast(`No receipts dated ${range.label}. Pick another range.`, 'error');
       return;
     }
 
@@ -970,21 +936,16 @@ class ExpenseApp {
       const department = document.getElementById('pdfDepartment').value.trim();
 
       const blob = await window.pdfCompiler.compileReportPdf(
-        {
-          ...this.currentReport,
-          submitterName,
-          department
-        },
-        this.currentReceipts,
+        this._reportMetaForRange(range, submitterName, department),
+        receipts,
         {
           layout: this.selectedLayout,
           addCover: addCover
         }
       );
 
-      // Trigger download
-      const cleanTitle = (this.currentReport.title || 'Expense_Report').replace(/[^a-zA-Z0-9_-]/g, '_');
-      const fileName = `${cleanTitle}_Receipts_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}.pdf`;
+      // Trigger download, e.g. Expense_Report_2026-10-01_to_2026-10-31.pdf
+      const fileName = `Expense_Report_${range.from || 'start'}_to_${range.to || this._localISO(new Date())}.pdf`;
 
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
@@ -1004,7 +965,9 @@ class ExpenseApp {
     this._setPreviewUpdating(true);
 
     try {
-      if (this.currentReceipts.length === 0) {
+      const range = this._computeRange();
+      const receipts = this._receiptsInRange(range);
+      if (receipts.length === 0) {
         if (requestId !== this.previewRequestId) return;
         this._revokePreviewObjectUrl();
         this.previewPdfDoc = null;
@@ -1016,7 +979,9 @@ class ExpenseApp {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
         const indicator = document.getElementById('previewPageIndicator');
-        if (indicator) indicator.textContent = 'No receipts to preview';
+        if (indicator) indicator.textContent = 'No receipts in this date range';
+        document.getElementById('btnPrevPage').disabled = true;
+        document.getElementById('btnNextPage').disabled = true;
         return;
       }
 
@@ -1025,12 +990,8 @@ class ExpenseApp {
       const department = document.getElementById('pdfDepartment').value.trim();
 
       const blob = await window.pdfCompiler.compileReportPdf(
-        {
-          ...this.currentReport,
-          submitterName,
-          department
-        },
-        this.currentReceipts,
+        this._reportMetaForRange(range, submitterName, department),
+        receipts,
         {
           layout: this.selectedLayout,
           addCover: addCover
@@ -1288,30 +1249,192 @@ class ExpenseApp {
     }, 3800);
   }
 
-  _categorySlug(category) {
-    return window.expenseLabels.categorySlug(category);
+  // ---- Date range for reports -------------------------------------------
+  // All dates are plain local calendar dates in YYYY-MM-DD form (the same
+  // form receipts are saved in), so comparisons never shift by a day the way
+  // UTC timestamps can.
+
+  _localISO(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
-  async _fillReportSelect(selectedId) {
-    const selectEl = document.getElementById('inputReport');
-    if (!selectEl) return;
-    const reports = window.sortReports(await window.store.getAllReports());
-    const chosen = selectedId || window.store.activeReportId;
-    selectEl.innerHTML = '';
-    reports.forEach(r => {
-      const opt = document.createElement('option');
-      opt.value = r.id;
-      opt.textContent = r.title;
-      if (r.id === chosen) opt.selected = true;
-      selectEl.appendChild(opt);
-    });
-    if (chosen && !reports.some(r => r.id === chosen)) {
-      const opt = document.createElement('option');
-      opt.value = chosen;
-      opt.textContent = 'Unknown report';
-      opt.selected = true;
-      selectEl.appendChild(opt);
+  _prettyDate(iso, withYear = true) {
+    const [y, m, d] = iso.split('-').map(Number);
+    const opts = withYear ? { month: 'short', day: 'numeric', year: 'numeric' } : { month: 'short', day: 'numeric' };
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', opts);
+  }
+
+  _monthName(ym, style = 'long') {
+    const [y, m] = ym.split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: style, year: 'numeric' });
+  }
+
+  _rangeLabel(from, to) {
+    if (!from && !to) return 'any date';
+    if (!from) return `on or before ${this._prettyDate(to)}`;
+    if (!to) return `on or after ${this._prettyDate(from)}`;
+    if (from === to) return this._prettyDate(from);
+    const sameYear = from.slice(0, 4) === to.slice(0, 4);
+    return `${this._prettyDate(from, !sameYear)} – ${this._prettyDate(to)}`;
+  }
+
+  _computeRange() {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = today.getMonth();
+    const iso = d => this._localISO(d);
+    const { preset, month } = this.dateRange;
+    let from = null, to = null, label;
+
+    if (preset === 'last_month') {
+      from = iso(new Date(y, m - 1, 1));
+      to = iso(new Date(y, m, 0));
+      label = this._monthName(from.slice(0, 7));
+    } else if (preset === 'last_90') {
+      from = iso(new Date(y, m, today.getDate() - 89)); // 90 days including today
+      to = iso(today);
+    } else if (preset === 'month' && month) {
+      const [my, mm] = month.split('-').map(Number);
+      from = `${month}-01`;
+      to = iso(new Date(my, mm, 0)); // day 0 of next month = last day of this month
+      label = this._monthName(month);
+    } else if (preset === 'custom') {
+      from = document.getElementById('rangeFrom').value || null;
+      to = document.getElementById('rangeTo').value || null;
+      if (from && to && from > to) [from, to] = [to, from];
+    } else {
+      from = iso(new Date(y, m, 1));
+      to = iso(new Date(y, m + 1, 0));
+      label = this._monthName(from.slice(0, 7));
     }
+    return { from, to, label: label || this._rangeLabel(from, to) };
+  }
+
+  _chronological(list) {
+    return [...list].sort((a, b) =>
+      String(a.date || '').localeCompare(String(b.date || '')) || (a.createdAt || 0) - (b.createdAt || 0));
+  }
+
+  // Receipts whose date falls inside the range (both ends included), oldest first
+  _receiptsInRange(range) {
+    return this._chronological(this.allReceipts.filter(r => {
+      if (!r.date) return false;
+      if (range.from && r.date < range.from) return false;
+      if (range.to && r.date > range.to) return false;
+      return true;
+    }));
+  }
+
+  _reportMetaForRange(range, submitterName, department) {
+    return {
+      ...(this.currentReport || {}),
+      title: `Expense Report – ${range.label}`,
+      periodLabel: range.from && range.to ? this._rangeLabel(range.from, range.to) : range.label,
+      submitterName,
+      department
+    };
+  }
+
+  _exportMeta(range) {
+    const from = range.from || 'start';
+    const to = range.to || this._localISO(new Date());
+    return {
+      title: `Expense Ledger – ${range.label}`,
+      periodLabel: range.from && range.to ? this._rangeLabel(range.from, range.to) : range.label,
+      fileBase: `Expense_Ledger_${from}_to_${to}`,
+      submitterName: (document.getElementById('pdfSubmitterName').value || '').trim(),
+      department: (document.getElementById('pdfDepartment').value || '').trim()
+    };
+  }
+
+  _bindDateRange() {
+    const card = document.getElementById('dateRangeCard');
+    if (!card) return;
+    card.addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-preset], [data-month]');
+      if (!chip) return;
+      if (chip.dataset.month) {
+        this.dateRange = { preset: 'month', month: chip.dataset.month };
+      } else {
+        this.dateRange = { preset: chip.dataset.preset, month: null };
+        if (chip.dataset.preset === 'custom') {
+          const fromEl = document.getElementById('rangeFrom');
+          const toEl = document.getElementById('rangeTo');
+          // Start the custom range from the current choice so it's easy to adjust
+          if (!fromEl.value && !toEl.value) {
+            const today = new Date();
+            fromEl.value = this._localISO(new Date(today.getFullYear(), today.getMonth(), 1));
+            toEl.value = this._localISO(today);
+          }
+        }
+      }
+      this._onRangeChanged();
+    });
+    ['rangeFrom', 'rangeTo'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => this._onRangeChanged());
+    });
+  }
+
+  // One range drives the summary, the Ledger and the PDF preview
+  _onRangeChanged() {
+    this.renderDateRange();
+    this.renderLedgerTable();
+    if (this.activeTab === 'tab-pdf') this.schedulePdfPreviewRefresh(true);
+  }
+
+  renderDateRange() {
+    const card = document.getElementById('dateRangeCard');
+    if (!card) return;
+    const { preset, month } = this.dateRange;
+
+    card.querySelectorAll('[data-preset]').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(btn.dataset.preset === preset));
+    });
+
+    // Month shortcuts: only months that actually have receipts, newest first
+    const counts = new Map();
+    this.allReceipts.forEach(r => {
+      if (r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date)) {
+        const ym = r.date.slice(0, 7);
+        counts.set(ym, (counts.get(ym) || 0) + 1);
+      }
+    });
+    const months = [...counts.keys()].sort().reverse();
+    const monthsWrap = document.getElementById('rangeMonthsWrap');
+    const monthsEl = document.getElementById('rangeMonths');
+    monthsWrap.hidden = months.length === 0;
+    monthsEl.innerHTML = months.map(ym => {
+      const pressed = preset === 'month' && month === ym;
+      return `<button type="button" class="range-chip range-chip-month" data-month="${ym}" aria-pressed="${pressed}">${this._escape(this._monthName(ym, 'short'))} <span class="range-chip-count">${counts.get(ym)}</span></button>`;
+    }).join('');
+
+    document.getElementById('rangeCustom').hidden = preset !== 'custom';
+
+    // Count + total for the chosen range
+    const range = this._computeRange();
+    const inRange = this._receiptsInRange(range);
+    const total = inRange.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+    const summary = document.getElementById('rangeSummary');
+    const compileBtn = document.getElementById('btnCompilePdf');
+    if (inRange.length === 0) {
+      summary.className = 'range-summary is-empty';
+      summary.innerHTML = `No receipts dated <strong>${this._escape(range.label)}</strong>.` +
+        (months.length ? ' Pick a month above or another range.' : ' Add receipts on the Receipts tab first.');
+      compileBtn.disabled = true;
+    } else {
+      summary.className = 'range-summary';
+      summary.innerHTML = `<span class="range-summary-count">${inRange.length} ${inRange.length === 1 ? 'receipt' : 'receipts'}</span>` +
+        `<span class="range-summary-total">$${total.toFixed(2)}</span>` +
+        `<span class="range-summary-label">${this._escape(range.label)}</span>`;
+      compileBtn.disabled = false;
+    }
+  }
+
+  _categorySlug(category) {
+    return window.expenseLabels.categorySlug(category);
   }
 
   _fillLabeledSelect(selectId, options, current, canonicalize) {

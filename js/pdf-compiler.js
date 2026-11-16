@@ -126,8 +126,8 @@ class PdfCompiler {
 
     // Submitter and Report Metadata
     const metaY = pageHeight - margin - 90;
-    page.drawText(`Report Title:`, { x: margin, y: metaY, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
-    page.drawText(`${report.title || 'Business Expenses'}`, { x: margin + 80, y: metaY, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
+    page.drawText(report.periodLabel ? `Period:` : `Report Title:`, { x: margin, y: metaY, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
+    page.drawText(`${report.periodLabel || report.title || 'Business Expenses'}`, { x: margin + 80, y: metaY, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
 
     page.drawText(`Submitter:`, { x: margin, y: metaY - 18, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
     page.drawText(`${report.submitterName || 'Employee'}`, { x: margin + 80, y: metaY - 18, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
