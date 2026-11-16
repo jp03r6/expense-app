@@ -270,7 +270,7 @@ class ExpenseStore {
       thumbnailDataUrl: receiptData.thumbnailDataUrl || '',
       date: receiptData.date || new Date().toISOString().split('T')[0],
       merchant: receiptData.merchant || 'Merchant',
-      category: receiptData.category || 'Meals & Entertainment',
+      category: receiptData.category || 'Meals',
       paymentMethod: receiptData.paymentMethod || 'Corporate Card',
       amount: parseFloat(receiptData.amount) || 0.0,
       currency: receiptData.currency || 'USD',
@@ -307,19 +307,52 @@ class ExpenseStore {
     const receipt = await this.getReceipt(receiptId);
     if (!receipt) return null;
 
+    const oldReportId = receipt.reportId;
     const updated = {
       ...receipt,
       ...updates,
       updatedAt: Date.now()
     };
+    const newReportId = updated.reportId;
+    const moved = !!(newReportId && oldReportId && newReportId !== oldReportId);
 
-    await new Promise((resolve, reject) => {
-      const tx = this.db.transaction('receipts', 'readwrite');
-      const store = tx.objectStore('receipts');
-      const req = store.put(updated);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
+    if (moved) {
+      const oldReport = await this.getReport(oldReportId);
+      const newReport = await this.getReport(newReportId);
+
+      await new Promise((resolve, reject) => {
+        const tx = this.db.transaction(['receipts', 'reports'], 'readwrite');
+        tx.objectStore('receipts').put(updated);
+
+        if (oldReport) {
+          if (oldReport.receiptOrder) {
+            oldReport.receiptOrder = oldReport.receiptOrder.filter(id => id !== receiptId);
+          }
+          oldReport.updatedAt = Date.now();
+          tx.objectStore('reports').put(oldReport);
+        }
+
+        if (newReport) {
+          if (!newReport.receiptOrder) newReport.receiptOrder = [];
+          if (!newReport.receiptOrder.includes(receiptId)) {
+            newReport.receiptOrder.push(receiptId);
+          }
+          newReport.updatedAt = Date.now();
+          tx.objectStore('reports').put(newReport);
+        }
+
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } else {
+      await new Promise((resolve, reject) => {
+        const tx = this.db.transaction('receipts', 'readwrite');
+        const store = tx.objectStore('receipts');
+        const req = store.put(updated);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
 
     this.notify('receipt:updated', updated);
     return updated;
@@ -517,3 +550,75 @@ class ExpenseStore {
 
 // Global store instance
 window.store = new ExpenseStore();
+
+
+/**
+ * Canonical expense categories and payment methods, plus aliases for older
+ * saved receipts. These helpers never rewrite stored data: known old names
+ * map to the new labels when displayed; anything else is shown as stored.
+ */
+const CANONICAL_CATEGORIES = ['Meals', 'Transportation', 'Lodging', 'Office Supplies'];
+const CANONICAL_PAYMENTS = ['Corporate Card', 'Personal Card', 'Cash'];
+
+const CATEGORY_ALIASES = {
+  'meals': 'Meals',
+  'meals & entertainment': 'Meals',
+  'meals and entertainment': 'Meals',
+  'transportation': 'Transportation',
+  'lodging': 'Lodging',
+  'travel & lodging': 'Lodging',
+  'travel and lodging': 'Lodging',
+  'office supplies': 'Office Supplies',
+  'office supplies & tech': 'Office Supplies',
+  'office supplies and tech': 'Office Supplies'
+};
+
+const CATEGORY_SLUGS = {
+  'Meals': 'meals',
+  'Transportation': 'transport',
+  'Lodging': 'lodging',
+  'Office Supplies': 'office'
+};
+
+function _labelKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function canonicalCategory(value) {
+  const key = _labelKey(value);
+  if (!key) return null;
+  return CATEGORY_ALIASES[key] || null;
+}
+
+function displayCategory(value) {
+  return canonicalCategory(value) || String(value || '').trim() || 'Meals';
+}
+
+function categorySlug(value) {
+  const canonical = canonicalCategory(value);
+  return CATEGORY_SLUGS[canonical] || 'other';
+}
+
+function canonicalPayment(value) {
+  const key = _labelKey(value);
+  if (!key) return null;
+  if (key.includes('corporate') || key.includes('company')) return 'Corporate Card';
+  if (key.includes('personal')) return 'Personal Card';
+  if (key.includes('cash')) return 'Cash';
+  return null;
+}
+
+function displayPayment(value) {
+  return canonicalPayment(value) || String(value || '').trim() || 'Corporate Card';
+}
+
+window.expenseLabels = {
+  CATEGORIES: CANONICAL_CATEGORIES,
+  PAYMENTS: CANONICAL_PAYMENTS,
+  canonicalCategory,
+  displayCategory,
+  categorySlug,
+  canonicalPayment,
+  displayPayment
+};
+

@@ -18,6 +18,9 @@ class ExpenseApp {
     this.previewPdfDoc = null;
     this.previewCurrentPage = 1;
     this.previewTotalPages = 1;
+    this.previewRequestId = 0;
+    this.previewDebounceTimer = null;
+    this.previewObjectUrl = null;
   }
 
   async init() {
@@ -251,7 +254,7 @@ class ExpenseApp {
     });
 
     // Add Receipt Buttons
-    const openAddModal = () => {
+    const openAddModal = async () => {
       this.editingReceiptId = null;
       this.stagedReceiptData = null;
       document.getElementById('modalReceiptTitle').textContent = 'Add Receipt or PDF';
@@ -261,6 +264,9 @@ class ExpenseApp {
       document.getElementById('inputAmount').value = '';
       document.getElementById('inputMerchant').value = '';
       document.getElementById('inputNotes').value = '';
+      this._fillLabeledSelect('inputCategory', window.expenseLabels.CATEGORIES, 'Meals', window.expenseLabels.canonicalCategory);
+      this._fillLabeledSelect('inputPayment', window.expenseLabels.PAYMENTS, 'Corporate Card', window.expenseLabels.canonicalPayment);
+      await this._fillReportSelect(window.store.activeReportId);
       this.openModal('modalAddReceipt');
     };
 
@@ -337,6 +343,7 @@ class ExpenseApp {
       const category = document.getElementById('inputCategory').value;
       const paymentMethod = document.getElementById('inputPayment').value;
       const notes = document.getElementById('inputNotes').value.trim();
+      const reportId = document.getElementById('inputReport').value || window.store.activeReportId;
 
       if (!this.stagedReceiptData && !this.editingReceiptId) {
         this.showToast('Please take a photo or upload a receipt file first.', 'error');
@@ -345,16 +352,24 @@ class ExpenseApp {
 
       if (this.editingReceiptId) {
         // Update existing receipt
+        const previous = await window.store.getReceipt(this.editingReceiptId);
         const updated = await window.store.updateReceipt(this.editingReceiptId, {
           date,
           amount,
           merchant,
           category,
           paymentMethod,
-          notes
+          notes,
+          reportId
         });
         if (updated) window.cloudSyncManager.broadcastReceiptUpdated(updated);
-        this.showToast('Receipt updated', 'success');
+        if (previous && reportId && previous.reportId !== reportId) {
+          const dest = await window.store.getReport(reportId);
+          const destTitle = dest && dest.title ? dest.title : 'the selected report';
+          this.showToast(`Receipt moved to ${destTitle}`, 'success');
+        } else {
+          this.showToast('Receipt updated', 'success');
+        }
       } else {
         // Add new receipt
         const added = await window.store.addReceipt({
@@ -364,7 +379,8 @@ class ExpenseApp {
           merchant,
           category,
           paymentMethod,
-          notes
+          notes,
+          reportId
         });
         if (added) window.cloudSyncManager.broadcastReceiptAdded(added);
         this.showToast('Receipt added to report', 'success');
@@ -408,22 +424,30 @@ class ExpenseApp {
       }
     });
 
-    // PDF Layout Options Picker
-    document.querySelectorAll('.layout-card').forEach(card => {
-      card.addEventListener('click', () => {
-        document.querySelectorAll('.layout-card').forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
-        this.selectedLayout = card.getAttribute('data-layout');
+    // PDF Layout Options Picker (native radios)
+    document.querySelectorAll('input[name="pdfLayout"]').forEach(input => {
+      input.addEventListener('change', () => {
+        if (!input.checked) return;
+        this.selectedLayout = input.value;
+        this.schedulePdfPreviewRefresh(true);
       });
+    });
+
+    // Auto-refresh preview when compile options change
+    const chkAddCover = document.getElementById('chkAddCover');
+    if (chkAddCover) {
+      chkAddCover.addEventListener('change', () => this.schedulePdfPreviewRefresh(true));
+    }
+    ['pdfSubmitterName', 'pdfDepartment'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', () => this.schedulePdfPreviewRefresh(false));
+      }
     });
 
     // PDF Compilation & Download
     document.getElementById('btnCompilePdf').addEventListener('click', async () => {
       await this.compileAndDownloadPdf();
-    });
-
-    document.getElementById('btnPreviewPdf').addEventListener('click', async () => {
-      await this.refreshPdfPreview();
     });
 
     // PDF Preview Pagination
@@ -552,7 +576,7 @@ class ExpenseApp {
 
     // If PDF tab selected, trigger preview refresh
     if (tabId === 'tab-pdf') {
-      this.refreshPdfPreview();
+      this.schedulePdfPreviewRefresh(true);
     }
 
     // If Settings tab selected, re-render QR code
@@ -676,7 +700,7 @@ class ExpenseApp {
       card.innerHTML = `
         <div class="receipt-card-header">
           <span class="receipt-num">ITEM #${idx + 1}</span>
-          <span class="category-badge cat-${catSlug}">${this._escape(r.category || 'Other')}</span>
+          <span class="category-badge cat-${catSlug}">${this._escape(window.expenseLabels.displayCategory(r.category))}</span>
         </div>
         <div class="receipt-thumb-wrapper" title="Click to inspect receipt">
           <span class="receipt-type-badge ${typeBadgeClass}">${typeLabel}</span>
@@ -746,16 +770,17 @@ class ExpenseApp {
       });
 
       // Edit Details
-      card.querySelector('.btn-edit').addEventListener('click', (e) => {
+      card.querySelector('.btn-edit').addEventListener('click', async (e) => {
         e.stopPropagation();
         this.editingReceiptId = r.id;
         document.getElementById('modalReceiptTitle').textContent = `Edit Receipt #${idx + 1}`;
         document.getElementById('inputDate').value = r.date || '';
         document.getElementById('inputAmount').value = r.amount || '';
         document.getElementById('inputMerchant').value = r.merchant || '';
-        document.getElementById('inputCategory').value = r.category || 'Meals & Entertainment';
-        document.getElementById('inputPayment').value = r.paymentMethod || 'Corporate Card';
+        this._fillLabeledSelect('inputCategory', window.expenseLabels.CATEGORIES, r.category, window.expenseLabels.canonicalCategory);
+        this._fillLabeledSelect('inputPayment', window.expenseLabels.PAYMENTS, r.paymentMethod, window.expenseLabels.canonicalPayment);
         document.getElementById('inputNotes').value = r.notes || '';
+        await this._fillReportSelect(r.reportId || window.store.activeReportId);
 
         document.getElementById('uploadPreviewImg').src = r.dataUrl || r.thumbnailDataUrl;
         document.getElementById('uploadPreviewSection').style.display = 'flex';
@@ -810,20 +835,12 @@ class ExpenseApp {
         </td>
         <td>
           <select class="table-input cat-select cat-${catSlug}" data-field="category">
-            <option value="Transportation" ${r.category === 'Transportation' ? 'selected' : ''}>Transportation</option>
-            <option value="Meals & Entertainment" ${r.category === 'Meals & Entertainment' ? 'selected' : ''}>Meals & Entertainment</option>
-            <option value="Travel & Lodging" ${r.category === 'Travel & Lodging' ? 'selected' : ''}>Travel & Lodging</option>
-            <option value="Office Supplies" ${r.category === 'Office Supplies' ? 'selected' : ''}>Office Supplies</option>
-            <option value="Client Meeting" ${r.category === 'Client Meeting' ? 'selected' : ''}>Client Meeting</option>
-            <option value="Other" ${r.category === 'Other' ? 'selected' : ''}>Other</option>
+            ${this._optionsHtml(window.expenseLabels.CATEGORIES, r.category, window.expenseLabels.canonicalCategory)}
           </select>
         </td>
         <td>
           <select class="table-input" data-field="paymentMethod">
-            <option value="Corporate Visa" ${r.paymentMethod === 'Corporate Visa' ? 'selected' : ''}>Corporate Visa</option>
-            <option value="Personal Card (Reimburse)" ${r.paymentMethod === 'Personal Card (Reimburse)' ? 'selected' : ''}>Personal Card</option>
-            <option value="Cash" ${r.paymentMethod === 'Cash' ? 'selected' : ''}>Cash</option>
-            <option value="Company Account" ${r.paymentMethod === 'Company Account' ? 'selected' : ''}>Company Account</option>
+            ${this._optionsHtml(window.expenseLabels.PAYMENTS, r.paymentMethod, window.expenseLabels.canonicalPayment)}
           </select>
         </td>
         <td>
@@ -869,6 +886,32 @@ class ExpenseApp {
     });
   }
 
+  _revokePreviewObjectUrl() {
+    if (this.previewObjectUrl) {
+      URL.revokeObjectURL(this.previewObjectUrl);
+      this.previewObjectUrl = null;
+    }
+  }
+
+  _setPreviewUpdating(on) {
+    const panel = document.getElementById('pdfPreviewPanel');
+    if (panel) panel.classList.toggle('is-updating', !!on);
+  }
+
+  schedulePdfPreviewRefresh(immediate = false) {
+    clearTimeout(this.previewDebounceTimer);
+    this.previewDebounceTimer = null;
+    if (immediate) {
+      this.refreshPdfPreview();
+      return;
+    }
+    // Debounce typing in name/department so we don't rebuild the PDF on every keystroke
+    this.previewDebounceTimer = setTimeout(() => {
+      this.previewDebounceTimer = null;
+      this.refreshPdfPreview();
+    }, 450);
+  }
+
   async compileAndDownloadPdf() {
     if (this.currentReceipts.length === 0) {
       this.showToast('No receipts to compile.', 'error');
@@ -912,9 +955,26 @@ class ExpenseApp {
   }
 
   async refreshPdfPreview() {
-    if (this.currentReceipts.length === 0) return;
+    const requestId = ++this.previewRequestId;
+    this._setPreviewUpdating(true);
 
     try {
+      if (this.currentReceipts.length === 0) {
+        if (requestId !== this.previewRequestId) return;
+        this._revokePreviewObjectUrl();
+        this.previewPdfDoc = null;
+        this.previewTotalPages = 1;
+        this.previewCurrentPage = 1;
+        const canvas = document.getElementById('pdfPreviewCanvas');
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        const indicator = document.getElementById('previewPageIndicator');
+        if (indicator) indicator.textContent = 'No receipts to preview';
+        return;
+      }
+
       const addCover = document.getElementById('chkAddCover').checked;
       const submitterName = document.getElementById('pdfSubmitterName').value.trim();
       const department = document.getElementById('pdfDepartment').value.trim();
@@ -932,21 +992,42 @@ class ExpenseApp {
         }
       );
 
+      // Latest-wins: ignore this result if a newer refresh has started
+      if (requestId !== this.previewRequestId) return;
+
+      // Preview is drawn onto a canvas from an ArrayBuffer, so there is
+      // usually no object URL. Revoke any leftover URL just in case a
+      // previous path created one.
+      this._revokePreviewObjectUrl();
+
       const arrayBuffer = await blob.arrayBuffer();
+      if (requestId !== this.previewRequestId) return;
+
       this.previewPdfDoc = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      if (requestId !== this.previewRequestId) return;
+
       this.previewTotalPages = this.previewPdfDoc.numPages;
       this.previewCurrentPage = 1;
 
-      await this.renderPreviewPage(1);
+      await this.renderPreviewPage(1, requestId);
     } catch (err) {
-      console.error('Preview error:', err);
+      if (requestId === this.previewRequestId) {
+        console.error('Preview error:', err);
+      }
+    } finally {
+      if (requestId === this.previewRequestId) {
+        this._setPreviewUpdating(false);
+      }
     }
   }
 
-  async renderPreviewPage(pageNum) {
+  async renderPreviewPage(pageNum, requestId = this.previewRequestId) {
     if (!this.previewPdfDoc) return;
+    if (requestId !== this.previewRequestId) return;
 
     const page = await this.previewPdfDoc.getPage(pageNum);
+    if (requestId !== this.previewRequestId) return;
+
     const canvas = document.getElementById('pdfPreviewCanvas');
     const ctx = canvas.getContext('2d');
 
@@ -959,6 +1040,8 @@ class ExpenseApp {
       canvasContext: ctx,
       viewport: viewport
     }).promise;
+
+    if (requestId !== this.previewRequestId) return;
 
     document.getElementById('previewPageIndicator').textContent = `Page ${pageNum} of ${this.previewTotalPages}`;
     document.getElementById('btnPrevPage').disabled = pageNum <= 1;
@@ -1075,7 +1158,7 @@ class ExpenseApp {
       date: '2026-11-10',
       merchant: 'Uber',
       category: 'Transportation',
-      paymentMethod: 'Corporate Visa',
+      paymentMethod: 'Corporate Card',
       amount: 37.75,
       notes: 'Rideshare from Airport to Client Hotel'
     });
@@ -1087,8 +1170,8 @@ class ExpenseApp {
       thumbnailDataUrl: restUrl,
       date: '2026-11-10',
       merchant: 'The Capital Grille',
-      category: 'Meals & Entertainment',
-      paymentMethod: 'Corporate Visa',
+      category: 'Meals',
+      paymentMethod: 'Corporate Card',
       amount: 212.48,
       notes: 'Client Dinner with Acme Corp VP'
     });
@@ -1100,8 +1183,8 @@ class ExpenseApp {
       thumbnailDataUrl: starUrl,
       date: '2026-11-11',
       merchant: 'Starbucks',
-      category: 'Meals & Entertainment',
-      paymentMethod: 'Corporate Visa',
+      category: 'Meals',
+      paymentMethod: 'Corporate Card',
       amount: 12.53,
       notes: 'Breakfast on departure'
     });
@@ -1124,15 +1207,65 @@ class ExpenseApp {
   }
 
   _categorySlug(category) {
-    const map = {
-      'Transportation': 'transport',
-      'Meals & Entertainment': 'meals',
-      'Travel & Lodging': 'lodging',
-      'Office Supplies': 'office',
-      'Client Meeting': 'client',
-      'Other': 'other'
+    return window.expenseLabels.categorySlug(category);
+  }
+
+  async _fillReportSelect(selectedId) {
+    const selectEl = document.getElementById('inputReport');
+    if (!selectEl) return;
+    const reports = await window.store.getAllReports();
+    reports.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0) || (a.title || '').localeCompare(b.title || ''));
+    const chosen = selectedId || window.store.activeReportId;
+    selectEl.innerHTML = '';
+    reports.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = r.title;
+      if (r.id === chosen) opt.selected = true;
+      selectEl.appendChild(opt);
+    });
+    if (chosen && !reports.some(r => r.id === chosen)) {
+      const opt = document.createElement('option');
+      opt.value = chosen;
+      opt.textContent = 'Unknown report';
+      opt.selected = true;
+      selectEl.appendChild(opt);
+    }
+  }
+
+  _fillLabeledSelect(selectId, options, current, canonicalize) {
+    const selectEl = document.getElementById(selectId);
+    if (!selectEl) return;
+    const canon = canonicalize(current);
+    const raw = (current || '').trim();
+    selectEl.innerHTML = '';
+
+    const addOption = (value, selected) => {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = value;
+      if (selected) opt.selected = true;
+      selectEl.appendChild(opt);
     };
-    return map[category] || 'other';
+
+    if (raw && !canon && !options.includes(raw)) {
+      addOption(raw, true);
+    }
+    options.forEach(opt => addOption(opt, canon ? canon === opt : raw === opt));
+  }
+
+  _optionsHtml(options, current, canonicalize) {
+    const canon = canonicalize(current);
+    const raw = (current || '').trim();
+    const parts = [];
+    if (raw && !canon && !options.includes(raw)) {
+      parts.push(`<option value="${this._escape(raw)}" selected>${this._escape(raw)}</option>`);
+    }
+    options.forEach(opt => {
+      const selected = (canon ? canon === opt : raw === opt) ? ' selected' : '';
+      parts.push(`<option value="${this._escape(opt)}"${selected}>${this._escape(opt)}</option>`);
+    });
+    return parts.join('');
   }
 
   _escape(str) {
