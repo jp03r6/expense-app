@@ -14,7 +14,7 @@
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   
-  <link rel="stylesheet" href="css/app.css?v=9">
+  <link rel="stylesheet" href="css/app.css?v=10">
 
   <!-- Self-contained Vendor Libraries -->
   <script src="vendor/pdf-lib.min.js"></script>
@@ -33,12 +33,6 @@
         <div class="brand-icon">🧾</div>
         <span>ExpenseSnap</span>
       </a>
-
-      <!-- Report Selector Dropdown -->
-      <div class="report-selector-wrapper">
-        <select id="reportSelect" class="report-select" title="Active Expense Report"></select>
-        <button id="btnNewReport" class="btn btn-secondary btn-sm" title="Create New Report">＋ New</button>
-      </div>
     </div>
 
     <div class="header-right">
@@ -88,8 +82,8 @@
     <section id="tab-receipts" class="tab-view active">
       <div class="view-header">
         <div class="view-title-group">
-          <h2>Receipt Gallery</h2>
-          <p>Organize, enhance, and review your receipts. The sequence here directly matches the compiled PDF and company spreadsheet.</p>
+          <h2>All Receipts</h2>
+          <p>Every receipt you've saved, newest first. To build a report, open the PDF tab and pick a date range.</p>
         </div>
         <div class="view-actions">
           <button id="btnQuickSample" class="btn btn-secondary btn-sm">✨ Add Demo Receipts</button>
@@ -101,7 +95,7 @@
 
       <div class="report-hero" id="reportHero">
         <div class="report-hero-copy">
-          <span class="report-hero-label">Report total</span>
+          <span class="report-hero-label">All receipts total</span>
           <span class="report-hero-total" id="heroTotal">$0.00</span>
         </div>
         <div class="report-hero-count">
@@ -113,7 +107,7 @@
       <!-- Empty State -->
       <div id="emptyReceipts" class="empty-state" style="display: none;">
         <div class="empty-icon">🧾</div>
-        <h3>No receipts in this report yet</h3>
+        <h3>No receipts yet</h3>
         <p>Snap a picture of a paper receipt from your phone, or upload a digital PDF (such as an Uber or airline receipt).</p>
         <button id="btnEmptyAdd" class="btn btn-primary">📸 Add Your First Receipt</button>
       </div>
@@ -175,6 +169,34 @@
 
     <!-- TAB 3: PDF COMPILATION & PREVIEW -->
     <section id="tab-pdf" class="tab-view">
+      <div class="date-range-card" id="dateRangeCard">
+        <div class="date-range-head">
+          <span class="date-range-step">1</span>
+          <h3 id="rangeLabel">Which receipts?</h3>
+        </div>
+        <div class="range-presets" role="group" aria-labelledby="rangeLabel">
+          <button type="button" class="range-chip" data-preset="this_month" aria-pressed="true">This month</button>
+          <button type="button" class="range-chip" data-preset="last_month" aria-pressed="false">Last month</button>
+          <button type="button" class="range-chip" data-preset="last_90" aria-pressed="false">Last 90 days</button>
+          <button type="button" class="range-chip" data-preset="custom" aria-pressed="false">From – to…</button>
+        </div>
+        <div class="range-custom" id="rangeCustom" hidden>
+          <div class="form-group">
+            <label for="rangeFrom">From</label>
+            <input type="date" id="rangeFrom" class="form-input">
+          </div>
+          <div class="form-group">
+            <label for="rangeTo">To</label>
+            <input type="date" id="rangeTo" class="form-input">
+          </div>
+        </div>
+        <div class="range-months-wrap" id="rangeMonthsWrap" hidden>
+          <span class="range-months-title">Months with receipts</span>
+          <div class="range-months" id="rangeMonths"></div>
+        </div>
+        <div class="range-summary" id="rangeSummary" aria-live="polite"></div>
+      </div>
+
       <div class="pdf-layout-picker">
         <div class="form-group">
           <label id="pdfLayoutLabel">Receipt Layout on Pages</label>
@@ -394,11 +416,6 @@
         </div>
 
         <!-- Metadata Form -->
-        <div class="form-group">
-          <label for="inputReport">Report</label>
-          <select id="inputReport" class="form-input" aria-label="Expense report">
-          </select>
-        </div>
 
         <div class="form-row">
           <div class="form-group">
@@ -461,30 +478,6 @@
     </div>
   </div>
 
-  <!-- MODAL: NEW REPORT -->
-  <div id="modalNewReport" class="modal-overlay">
-    <div class="modal-card" style="max-width: 440px;">
-      <div class="modal-header">
-        <h3>Create New Expense Report</h3>
-        <button class="btn-icon modal-close">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label for="inputReportTitle">Report Title</label>
-          <input type="text" id="inputReportTitle" class="form-input" placeholder="e.g. November 2026 Client Trip" required>
-        </div>
-        <div class="form-group">
-          <label for="inputReportSubmitter">Your Name</label>
-          <input type="text" id="inputReportSubmitter" class="form-input" placeholder="Employee Name">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary modal-close">Cancel</button>
-        <button id="btnCreateReportSubmit" class="btn btn-primary">Create Report</button>
-      </div>
-    </div>
-  </div>
-
   <!-- MODAL: IN-APP QR CODE SCANNER -->
   <div id="modalQrScanner" class="modal-overlay">
     <div class="modal-card" style="max-width: 440px;">
@@ -513,11 +506,11 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <!-- Application Logic Modules -->
-  <script src="js/store.js?v=9"></script>
-  <script src="js/receipt-manager.js?v=9"></script>
-  <script src="js/pdf-compiler.js?v=9"></script>
-  <script src="js/spreadsheet-helper.js?v=9"></script>
-  <script src="js/firebase-config.js?v=9"></script>
-  <script src="js/app.js?v=9"></script>
+  <script src="js/store.js?v=10"></script>
+  <script src="js/receipt-manager.js?v=10"></script>
+  <script src="js/pdf-compiler.js?v=10"></script>
+  <script src="js/spreadsheet-helper.js?v=10"></script>
+  <script src="js/firebase-config.js?v=10"></script>
+  <script src="js/app.js?v=10"></script>
 </body>
 </html>

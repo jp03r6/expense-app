@@ -354,6 +354,16 @@ class ExpenseStore {
     });
   }
 
+  // Every receipt on this device, whatever report folder it was saved in
+  async getAllReceipts() {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('receipts', 'readonly');
+      const req = tx.objectStore('receipts').getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
   async getReceipt(receiptId) {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('receipts', 'readonly');

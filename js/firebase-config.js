@@ -240,7 +240,8 @@ class CloudSyncManager {
         // Peer requested data: send our active report and receipts
         const activeReport = await window.store.getActiveReport();
         if (activeReport) {
-          const receipts = await window.store.getReceiptsForReport(activeReport.id);
+          // Receipts are one list now, so share all of them
+          const receipts = await window.store.getAllReceipts();
           this.publish('sync', {
             type: 'SEND_FULL_DATA',
             targetId: payload.senderId,
