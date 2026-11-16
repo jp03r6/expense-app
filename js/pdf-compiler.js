@@ -136,7 +136,7 @@ class PdfCompiler {
     page.drawText(`${report.department || '—'}`, { x: margin + 80, y: metaY - 36, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
 
     page.drawText(`Date Generated:`, { x: pageWidth - margin - 180, y: metaY, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
-    page.drawText(`${new Date().toISOString().split('T')[0]}`, { x: pageWidth - margin - 85, y: metaY, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
+    page.drawText(`${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}`, { x: pageWidth - margin - 85, y: metaY, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
 
     page.drawText(`Total Receipts:`, { x: pageWidth - margin - 180, y: metaY - 18, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
     page.drawText(`${receipts.length}`, { x: pageWidth - margin - 85, y: metaY - 18, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });

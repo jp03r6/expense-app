@@ -282,7 +282,7 @@ class ExpenseApp {
       document.getElementById('modalReceiptTitle').textContent = 'Add Receipt or PDF';
       document.getElementById('uploadPreviewSection').style.display = 'none';
       document.getElementById('dropzone').style.display = 'block';
-      document.getElementById('inputDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('inputDate').value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
       document.getElementById('inputAmount').value = '';
       document.getElementById('inputMerchant').value = '';
       document.getElementById('inputNotes').value = '';
@@ -545,7 +545,7 @@ class ExpenseApp {
       const blob = new Blob([backupJson], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `ExpenseSnap_Backup_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `ExpenseSnap_Backup_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(a.href);
       this.showToast('Backup file downloaded', 'success');
@@ -983,7 +983,7 @@ class ExpenseApp {
 
       // Trigger download
       const cleanTitle = (this.currentReport.title || 'Expense_Report').replace(/[^a-zA-Z0-9_-]/g, '_');
-      const fileName = `${cleanTitle}_Receipts_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `${cleanTitle}_Receipts_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}.pdf`;
 
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
