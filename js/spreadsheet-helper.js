@@ -67,7 +67,7 @@ class SpreadsheetHelper {
       ['Expense Report:', report.title || 'Expenses'],
       ['Submitter:', report.submitterName || ''],
       ['Department:', report.department || ''],
-      ['Export Date:', new Date().toISOString().split('T')[0]],
+      ['Export Date:', new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]],
       [], // Blank row
       ['Item #', 'Date', 'Merchant / Vendor', 'Category', 'Payment Method', 'Amount ($)', 'Notes']
     ];
@@ -108,7 +108,7 @@ class SpreadsheetHelper {
     XLSX.utils.book_append_sheet(wb, ws, 'Expense Details');
 
     const cleanTitle = (report.title || 'Expense_Report').replace(/[^a-zA-Z0-9_-]/g, '_');
-    const fileName = `${cleanTitle}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const fileName = `${cleanTitle}_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}.xlsx`;
 
     XLSX.writeFile(wb, fileName);
   }

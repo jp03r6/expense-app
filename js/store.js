@@ -268,7 +268,7 @@ class ExpenseStore {
       dataUrl: receiptData.dataUrl || '', // For images
       rawArrayBuffer: receiptData.rawArrayBuffer || null, // For PDFs
       thumbnailDataUrl: receiptData.thumbnailDataUrl || '',
-      date: receiptData.date || new Date().toISOString().split('T')[0],
+      date: receiptData.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
       merchant: receiptData.merchant || 'Merchant',
       category: receiptData.category || 'Meals',
       paymentMethod: receiptData.paymentMethod || 'Corporate Card',
