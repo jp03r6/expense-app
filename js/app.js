@@ -30,8 +30,25 @@ class ExpenseApp {
 
     // 2. Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(err => {
+      // updateViaCache: 'none' makes the browser always check the server for a
+      // newer sw.js instead of trusting its own HTTP cache.
+      navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reg => {
+        // Installed apps can stay open for days; look for an update whenever
+        // the app comes back to the foreground.
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update().catch(() => {});
+        });
+      }).catch(err => {
         console.warn('Service worker registration failed:', err);
+      });
+
+      // When a new version takes over, reload once so the page and its code match.
+      const hadController = !!navigator.serviceWorker.controller;
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController || reloading) return;
+        reloading = true;
+        window.location.reload();
       });
     }
 
@@ -217,6 +234,11 @@ class ExpenseApp {
   }
 
   _bindEvents() {
+    // Modal closing is wired first, with one listener on the whole page, so
+    // Cancel, the X, a tap outside the card, and the Escape key keep working
+    // even if some later setup step fails.
+    this._bindModalClosing();
+
     // Navigation Tabs (Desktop & Mobile)
     document.querySelectorAll('[data-tab]').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -300,7 +322,10 @@ class ExpenseApp {
 
     fileInput.addEventListener('change', async (e) => {
       if (e.target.files && e.target.files.length > 0) {
-        await this.handleFileUpload(e.target.files[0]);
+        const file = e.target.files[0];
+        // Clear the picker so choosing the same file again still triggers a change
+        e.target.value = '';
+        await this.handleFileUpload(file);
       }
     });
 
@@ -540,20 +565,6 @@ class ExpenseApp {
       }
     });
 
-    // Generic Modal Close Buttons
-    document.querySelectorAll('.modal-close').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const modal = e.target.closest('.modal-overlay');
-        if (modal) modal.classList.remove('open');
-      });
-    });
-
-    // Close modal on background click
-    document.querySelectorAll('.modal-overlay').forEach(modal => {
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.classList.remove('open');
-      });
-    });
   }
 
   switchTab(tabId) {
@@ -582,6 +593,39 @@ class ExpenseApp {
     // If Settings tab selected, re-render QR code
     if (tabId === 'tab-settings') {
       this.renderQrCode();
+    }
+  }
+
+  _bindModalClosing() {
+    document.addEventListener('click', (e) => {
+      const closeBtn = e.target.closest('.modal-close');
+      if (closeBtn) {
+        const modal = closeBtn.closest('.modal-overlay');
+        if (modal) this._dismissModal(modal);
+        return;
+      }
+      // Tap on the dark backdrop (not on the card itself)
+      if (e.target.classList && e.target.classList.contains('modal-overlay')) {
+        this._dismissModal(e.target);
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const open = document.querySelectorAll('.modal-overlay.open');
+      if (open.length) this._dismissModal(open[open.length - 1]);
+    });
+  }
+
+  _dismissModal(modal) {
+    if (modal.id === 'modalQrScanner') {
+      this.stopQrScanner(); // also turns the camera off
+      return;
+    }
+    modal.classList.remove('open');
+    if (modal.id === 'modalAddReceipt') {
+      this.editingReceiptId = null;
+      this.stagedReceiptData = null;
     }
   }
 
