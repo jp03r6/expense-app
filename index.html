@@ -14,7 +14,7 @@
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   
-  <link rel="stylesheet" href="css/app.css?v=10">
+  <link rel="stylesheet" href="css/app.css?v=11">
 
   <!-- Self-contained Vendor Libraries -->
   <script src="vendor/pdf-lib.min.js"></script>
@@ -118,6 +118,8 @@
 
     <!-- TAB 2: SPREADSHEET LEDGER -->
     <section id="tab-ledger" class="tab-view">
+      <!-- The shared "Which receipts?" card moves here when this tab is open -->
+      <div class="range-slot" data-range-slot="tab-ledger"></div>
       <div class="ledger-container">
         <div class="ledger-toolbar">
           <div class="ledger-stats">
@@ -169,6 +171,7 @@
 
     <!-- TAB 3: PDF COMPILATION & PREVIEW -->
     <section id="tab-pdf" class="tab-view">
+      <div class="range-slot" data-range-slot="tab-pdf">
       <div class="date-range-card" id="dateRangeCard">
         <div class="date-range-head">
           <span class="date-range-step">1</span>
@@ -195,6 +198,7 @@
           <div class="range-months" id="rangeMonths"></div>
         </div>
         <div class="range-summary" id="rangeSummary" aria-live="polite"></div>
+      </div>
       </div>
 
       <div class="pdf-layout-picker">
@@ -506,11 +510,11 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <!-- Application Logic Modules -->
-  <script src="js/store.js?v=10"></script>
-  <script src="js/receipt-manager.js?v=10"></script>
-  <script src="js/pdf-compiler.js?v=10"></script>
-  <script src="js/spreadsheet-helper.js?v=10"></script>
-  <script src="js/firebase-config.js?v=10"></script>
-  <script src="js/app.js?v=10"></script>
+  <script src="js/store.js?v=11"></script>
+  <script src="js/receipt-manager.js?v=11"></script>
+  <script src="js/pdf-compiler.js?v=11"></script>
+  <script src="js/spreadsheet-helper.js?v=11"></script>
+  <script src="js/firebase-config.js?v=11"></script>
+  <script src="js/app.js?v=11"></script>
 </body>
 </html>

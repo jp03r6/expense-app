@@ -65,6 +65,7 @@ class SpreadsheetHelper {
 
     const data = [
       ['Expense Report:', report.title || 'Expenses'],
+      ...(report.periodLabel ? [['Period:', report.periodLabel]] : []),
       ['Submitter:', report.submitterName || ''],
       ['Department:', report.department || ''],
       ['Export Date:', new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]],
@@ -108,7 +109,9 @@ class SpreadsheetHelper {
     XLSX.utils.book_append_sheet(wb, ws, 'Expense Details');
 
     const cleanTitle = (report.title || 'Expense_Report').replace(/[^a-zA-Z0-9_-]/g, '_');
-    const fileName = `${cleanTitle}_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}.xlsx`;
+    const fileName = report.fileBase
+      ? `${report.fileBase}.xlsx`
+      : `${cleanTitle}_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}.xlsx`;
 
     XLSX.writeFile(wb, fileName);
   }
@@ -135,7 +138,7 @@ class SpreadsheetHelper {
     const csvContent = rows.map(row => row.join(',')).join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const cleanTitle = (report.title || 'Expense_Report').replace(/[^a-zA-Z0-9_-]/g, '_');
-    const fileName = `${cleanTitle}.csv`;
+    const fileName = report.fileBase ? `${report.fileBase}.csv` : `${cleanTitle}.csv`;
 
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);

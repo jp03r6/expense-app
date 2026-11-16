@@ -402,7 +402,7 @@ class ExpenseApp {
     // Spreadsheet Companion: 1-Click Copy for Excel
     document.getElementById('btnCopyExcel').addEventListener('click', async () => {
       try {
-        const res = await window.spreadsheetHelper.copyTableForExcel(this._chronological(this.allReceipts), true);
+        const res = await window.spreadsheetHelper.copyTableForExcel(this._receiptsInRange(this._computeRange()), true);
         this.showToast(`✅ Copied ${res.count} rows to clipboard! Just press Ctrl+V in your company Excel sheet.`, 'success');
       } catch (err) {
         this.showToast('Failed to copy: ' + err.message, 'error');
@@ -412,7 +412,8 @@ class ExpenseApp {
     // Spreadsheet Companion: Export .xlsx
     document.getElementById('btnExportXlsx').addEventListener('click', () => {
       try {
-        window.spreadsheetHelper.exportToExcel(this._exportMeta(), this._chronological(this.allReceipts));
+        const range = this._computeRange();
+        window.spreadsheetHelper.exportToExcel(this._exportMeta(range), this._receiptsInRange(range));
         this.showToast('Excel workbook downloaded', 'success');
       } catch (err) {
         this.showToast('Export failed: ' + err.message, 'error');
@@ -422,7 +423,8 @@ class ExpenseApp {
     // Spreadsheet Companion: Export CSV
     document.getElementById('btnExportCsv').addEventListener('click', () => {
       try {
-        window.spreadsheetHelper.exportToCsv(this._exportMeta(), this._chronological(this.allReceipts));
+        const range = this._computeRange();
+        window.spreadsheetHelper.exportToCsv(this._exportMeta(range), this._receiptsInRange(range));
         this.showToast('CSV downloaded', 'success');
       } catch (err) {
         this.showToast('Export failed: ' + err.message, 'error');
@@ -565,6 +567,12 @@ class ExpenseApp {
       view.classList.toggle('active', view.id === tabId);
     });
 
+    // The PDF and Ledger tabs share ONE "Which receipts?" card: move it into
+    // the tab being opened so both always show the same date range.
+    const slot = document.querySelector(`[data-range-slot="${tabId}"]`);
+    const rangeCard = document.getElementById('dateRangeCard');
+    if (slot && rangeCard && rangeCard.parentElement !== slot) slot.appendChild(rangeCard);
+
     // If PDF tab selected, trigger preview refresh
     if (tabId === 'tab-pdf') {
       this.schedulePdfPreviewRefresh(true);
@@ -668,8 +676,6 @@ class ExpenseApp {
 
     const totalFormatted = `$${total.toFixed(2)}`;
     document.getElementById('headerTotal').textContent = totalFormatted;
-    document.getElementById('ledgerTotal').textContent = totalFormatted;
-    document.getElementById('ledgerCount').textContent = this.currentReceipts.length;
     document.getElementById('badgeReceiptCount').textContent = this.currentReceipts.length;
     const heroTotal = document.getElementById('heroTotal');
     const heroCount = document.getElementById('heroCount');
@@ -796,18 +802,32 @@ class ExpenseApp {
     const tbody = document.getElementById('ledgerTableBody');
     tbody.innerHTML = '';
 
-    if (this.currentReceipts.length === 0) {
+    // Same date range as the PDF tab, oldest first
+    const range = this._computeRange();
+    const rows = this._receiptsInRange(range);
+    const total = rows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+    document.getElementById('ledgerCount').textContent = rows.length;
+    document.getElementById('ledgerTotal').textContent = `$${total.toFixed(2)}`;
+    ['btnCopyExcel', 'btnExportXlsx', 'btnExportCsv'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.disabled = rows.length === 0;
+    });
+
+    if (rows.length === 0) {
+      const msg = this.allReceipts.length === 0
+        ? 'No receipts added yet. Add receipts to automatically generate your spreadsheet.'
+        : `No receipts dated ${this._escape(range.label)}. Pick another range above.`;
       tbody.innerHTML = `
         <tr>
-          <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 30px;">
-            No receipts added yet. Add receipts to automatically generate your spreadsheet.
+          <td colspan="9" class="ledger-empty" style="text-align: center; color: var(--text-muted); padding: 30px;">
+            ${msg}
           </td>
         </tr>
       `;
       return;
     }
 
-    this.currentReceipts.forEach((r, idx) => {
+    rows.forEach((r, idx) => {
       const tr = document.createElement('tr');
       const catSlug = this._categorySlug(r.category);
       tr.className = `cat-${catSlug}`;
@@ -1318,9 +1338,13 @@ class ExpenseApp {
     };
   }
 
-  _exportMeta() {
+  _exportMeta(range) {
+    const from = range.from || 'start';
+    const to = range.to || this._localISO(new Date());
     return {
-      title: 'All receipts',
+      title: `Expense Ledger – ${range.label}`,
+      periodLabel: range.from && range.to ? this._rangeLabel(range.from, range.to) : range.label,
+      fileBase: `Expense_Ledger_${from}_to_${to}`,
       submitterName: (document.getElementById('pdfSubmitterName').value || '').trim(),
       department: (document.getElementById('pdfDepartment').value || '').trim()
     };
@@ -1347,15 +1371,18 @@ class ExpenseApp {
           }
         }
       }
-      this.renderDateRange();
-      this.schedulePdfPreviewRefresh(true);
+      this._onRangeChanged();
     });
     ['rangeFrom', 'rangeTo'].forEach(id => {
-      document.getElementById(id).addEventListener('change', () => {
-        this.renderDateRange();
-        this.schedulePdfPreviewRefresh(true);
-      });
+      document.getElementById(id).addEventListener('change', () => this._onRangeChanged());
     });
+  }
+
+  // One range drives the summary, the Ledger and the PDF preview
+  _onRangeChanged() {
+    this.renderDateRange();
+    this.renderLedgerTable();
+    if (this.activeTab === 'tab-pdf') this.schedulePdfPreviewRefresh(true);
   }
 
   renderDateRange() {
