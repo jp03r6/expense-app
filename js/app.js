@@ -106,6 +106,8 @@ class ExpenseApp {
 
   applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
+    const phoneToggle = document.getElementById('mThemeToggle');
+    if (phoneToggle) phoneToggle.checked = theme === 'dark';
     const icon = document.getElementById('themeIcon');
     if (icon) {
       icon.textContent = theme === 'dark' ? '☀️' : '🌙';
@@ -592,6 +594,9 @@ class ExpenseApp {
   }
 
   switchTab(tabId) {
+    if (document.documentElement.classList.contains('is-phone') && this.activeTab !== tabId) {
+      window.scrollTo(0, 0);
+    }
     this.activeTab = tabId;
     
     // Update Desktop Tabs
@@ -756,6 +761,7 @@ class ExpenseApp {
       mq.addEventListener('change', () => {
         root.classList.toggle('is-phone', mq.matches);
         if (!mq.matches) root.classList.remove('show-home');
+        this.applyPhoneLayout();
       });
     }
     // index.html already added these before the first paint; keep them in sync.
@@ -790,6 +796,96 @@ class ExpenseApp {
     document.getElementById('phNoReceipt').addEventListener('click', () => this.openNoReceiptForm());
     document.getElementById('phSettings').addEventListener('click', () => this.showFullApp('tab-settings'));
     document.getElementById('navHome').addEventListener('click', () => this.showPhoneHome());
+    this.setupPhoneTabs();
+  }
+
+  // ---- Phone versions of Receipts, Ledger, PDF and Settings ----
+  // These are extra phone-only blocks (.m-only). They call the same code as
+  // the laptop controls, so saving, exports and the PDF work exactly the same.
+  setupPhoneTabs() {
+    const themeToggle = document.getElementById('mThemeToggle');
+    themeToggle.checked = document.documentElement.getAttribute('data-theme') === 'dark';
+    themeToggle.addEventListener('change', () => {
+      const next = themeToggle.checked ? 'dark' : 'light';
+      this.applyTheme(next);
+      localStorage.setItem('expensesnap_theme', next);
+    });
+    document.querySelectorAll('.js-demo-receipts').forEach(btn =>
+      btn.addEventListener('click', () => this.loadSampleReceipts()));
+
+    // Range chip rows (Ledger and PDF): the first chip opens the range sheet,
+    // the month chips are one-tap shortcuts.
+    document.addEventListener('click', (e) => {
+      const chip = e.target.closest('.js-range-chips .mt-chip');
+      if (!chip) return;
+      if (chip.classList.contains('js-range-open')) {
+        this.openRangeSheet();
+      } else if (chip.dataset.month) {
+        this.dateRange = { preset: 'month', month: chip.dataset.month };
+        this._onRangeChanged();
+      }
+    });
+    this.applyPhoneLayout();
+  }
+
+  // Moves shared pieces between the laptop and phone layouts when the
+  // phone rule starts or stops matching.
+  applyPhoneLayout() {
+    const phone = document.documentElement.classList.contains('is-phone');
+    const preview = document.getElementById('pdfPreviewPanel');
+    const phoneSlot = document.getElementById('mPdfPreviewSlot');
+    const deskSlot = document.getElementById('pdfPreviewHome');
+    if (preview && phoneSlot && deskSlot) {
+      const target = phone ? phoneSlot : deskSlot;
+      if (preview.parentElement !== target) target.appendChild(preview);
+    }
+    if (!phone) {
+      // Put the range card back into the open laptop tab
+      const slot = document.querySelector(`[data-range-slot="${this.activeTab}"]`);
+      const rangeCard = document.getElementById('dateRangeCard');
+      if (slot && rangeCard && rangeCard.parentElement !== slot) slot.appendChild(rangeCard);
+    }
+  }
+
+  openRangeSheet() {
+    const rangeCard = document.getElementById('dateRangeCard');
+    const slot = document.getElementById('rangeSheetSlot');
+    if (rangeCard && slot && rangeCard.parentElement !== slot) slot.appendChild(rangeCard);
+    this.openModal('modalRange');
+  }
+
+  _rangeChipLabel() {
+    const { preset, month } = this.dateRange;
+    const names = { this_month: 'This month', last_month: 'Last month', last_90: 'Last 90 days' };
+    if (names[preset]) return names[preset];
+    if (preset === 'month' && month) return this._monthName(month, 'short');
+    return this._computeRange().label;
+  }
+
+  renderPhoneRangeChips() {
+    const rows = document.querySelectorAll('.js-range-chips');
+    if (!rows.length) return;
+    const range = this._computeRange();
+    const n = this._receiptsInRange(range).length;
+    const counts = new Map();
+    this.allReceipts.forEach(r => {
+      if (r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date)) {
+        const ym = r.date.slice(0, 7);
+        counts.set(ym, (counts.get(ym) || 0) + 1);
+      }
+    });
+    const { preset, month } = this.dateRange;
+    const months = [...counts.keys()].sort().reverse()
+      .filter(ym => !(preset === 'month' && month === ym))
+      .slice(0, 3);
+    const html =
+      `<button type="button" class="mt-chip js-range-open" aria-pressed="true" aria-haspopup="dialog" aria-label="Date range: ${this._escape(this._rangeChipLabel())}, ${n} receipts. Change">` +
+        `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>` +
+        `<span>${this._escape(this._rangeChipLabel())} · ${n}</span>` +
+        `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>` +
+      `</button>` +
+      months.map(ym => `<button type="button" class="mt-chip" data-month="${ym}" aria-pressed="false"><span>${this._escape(this._monthName(ym, 'short'))}</span><span class="n">${counts.get(ym)}</span></button>`).join('');
+    rows.forEach(row => { row.innerHTML = html; });
   }
 
   showPhoneHome() {
@@ -1638,7 +1734,11 @@ class ExpenseApp {
         `<span class="range-summary-label">${this._escape(range.label)}</span>`;
       compileBtn.disabled = false;
     }
+    this.renderPhoneRangeChips();
+    this.renderPhonePdf();
   }
+
+  renderPhonePdf() {}
 
   _categorySlug(category) {
     return window.expenseLabels.categorySlug(category);

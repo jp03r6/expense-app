@@ -14,7 +14,7 @@
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   
-  <link rel="stylesheet" href="css/app.css?v=14">
+  <link rel="stylesheet" href="css/app.css?v=15">
   <script>
     // Phones (narrow or touch screen) open on the quick-capture home screen.
     // Decided before the first paint so the full app never flashes first.
@@ -83,6 +83,16 @@
     </div>
 
   </section>
+
+  <!-- PHONE: "Which receipts?" sheet. The shared date range card moves in here. -->
+  <div id="modalRange" class="modal-overlay ph-sheet-overlay">
+    <div class="ph-sheet" role="dialog" aria-modal="true" aria-labelledby="rangeSheetTitle">
+      <div class="ph-sheet-grab" aria-hidden="true"></div>
+      <h3 id="rangeSheetTitle" class="ph-sheet-title">Which receipts?</h3>
+      <div id="rangeSheetSlot" data-range-slot="sheet"></div>
+      <button class="ph-sheet-primary modal-close" type="button">Done</button>
+    </div>
+  </div>
 
   <!-- PHONE HOME: "Upload photo or PDF" choice sheet -->
   <div id="modalUploadChoice" class="modal-overlay ph-sheet-overlay">
@@ -371,6 +381,22 @@
 
     <!-- TAB 4: SETTINGS, CLOUD SYNC & BACKUP -->
     <section id="tab-settings" class="tab-view">
+      <!-- PHONE: page title, dark mode and demo receipts (moved from the header) -->
+      <div class="mt m-only" id="mSettings">
+        <div class="mt-top"><h1>Settings</h1></div>
+        <div class="mt-px">
+          <div class="mt-card mt-setting-list">
+            <label class="mt-setting" for="mThemeToggle">
+              <span class="mt-setting-text"><b>Dark mode</b><small>Easier on the eyes at night</small></span>
+              <input type="checkbox" id="mThemeToggle" class="sync-switch" role="switch">
+            </label>
+            <div class="mt-setting">
+              <span class="mt-setting-text"><b>Demo receipts</b><small>Add sample receipts to try the app</small></span>
+              <button type="button" class="mt-btn js-demo-receipts">Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
       <div style="max-width: 700px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px;">
         <!-- Multi-Device Pairing Box -->
         <div style="background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 24px;">
@@ -600,11 +626,11 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <!-- Application Logic Modules -->
-  <script src="js/store.js?v=14"></script>
-  <script src="js/receipt-manager.js?v=14"></script>
-  <script src="js/pdf-compiler.js?v=14"></script>
-  <script src="js/spreadsheet-helper.js?v=14"></script>
-  <script src="js/firebase-config.js?v=14"></script>
-  <script src="js/app.js?v=14"></script>
+  <script src="js/store.js?v=15"></script>
+  <script src="js/receipt-manager.js?v=15"></script>
+  <script src="js/pdf-compiler.js?v=15"></script>
+  <script src="js/spreadsheet-helper.js?v=15"></script>
+  <script src="js/firebase-config.js?v=15"></script>
+  <script src="js/app.js?v=15"></script>
 </body>
 </html>

@@ -2304,7 +2304,9 @@ button {
 }
 
 .phone-home,
-.ph-sheet {
+.ph-sheet,
+.mt,
+html.is-phone .mobile-nav-bar {
   --ph-primary: #1E40AF;
   --ph-primary-hover: #1E3A8A;
   --ph-primary-wash: #EFF4FF;
@@ -2541,7 +2543,9 @@ html.show-home body {
 
 
 [data-theme="dark"] .phone-home,
-[data-theme="dark"] .ph-sheet {
+[data-theme="dark"] .ph-sheet,
+[data-theme="dark"] .mt,
+html.is-phone[data-theme="dark"] .mobile-nav-bar {
   --ph-bg: #0F172A;
   --ph-surface: #1E293B;
   --ph-line: #334155;
@@ -2661,15 +2665,409 @@ html.is-phone .app-container {
   .ph-sheet { transition: none; transform: none; }
 }
 
-/* On the phone home screen the Home tab is the active one, even before the
-   app's script has run (index.html sets show-home before the first paint). */
-html.show-home .mobile-nav-bar .mobile-nav-item.active:not(#navHome) {
-  color: var(--text-muted);
+/* ==========================================================================
+   Phone layout (shared): page titles instead of the purple header, restyled
+   bottom bar, sheets, range chip. Everything is scoped to html.is-phone or to
+   phone-only (.m-only) blocks, so the laptop layout is untouched.
+   ========================================================================== */
+.m-only { display: none !important; }
+html.is-phone .m-only { display: block !important; }
+html.is-phone .d-only { display: none !important; }
+
+html.is-phone .app-header,
+html.is-phone .nav-tabs,
+html.is-phone .fab-btn {
+  display: none !important;
+}
+html.is-phone:not([data-theme="dark"]) body {
+  background: #F6F7F9;
+}
+html.is-phone .app-container {
+  padding: 0 0 calc(var(--nav-height) + 24px + env(safe-area-inset-bottom, 0px));
+  gap: 0;
+  max-width: 100%;
+}
+html.is-phone #tab-settings {
+  padding: 0 0 8px;
+}
+html.is-phone #tab-settings > div:not(.mt) {
+  padding: 24px 16px 0;
+}
+
+/* Bottom bar, matching the home screen */
+html.is-phone .mobile-nav-bar {
+  background: var(--ph-surface);
+  border-top: 1px solid var(--ph-line);
+  box-shadow: none;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  padding-left: max(4px, env(safe-area-inset-left, 0px));
+  padding-right: max(4px, env(safe-area-inset-right, 0px));
+}
+html.is-phone .mobile-nav-item {
+  color: var(--ph-muted);
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  font-size: 0.75rem;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 0 6px;
+}
+html.is-phone .mobile-nav-item svg {
+  box-sizing: content-box;
+  width: 22px;
+  height: 22px;
+  padding: 4px 14px;
+  border-radius: 999px;
+}
+html.is-phone .mobile-nav-item.active {
+  color: var(--ph-primary);
   background: transparent;
   box-shadow: none;
 }
-html.show-home #navHome {
-  color: var(--color-on-primary);
-  background: var(--primary);
-  box-shadow: 0 2px 8px rgb(79 70 229 / 0.35);
+html.is-phone .mobile-nav-item.active svg {
+  background: var(--ph-primary-wash);
+}
+/* On the phone home screen the Home tab is the active one, even before the
+   app's script has run (index.html sets show-home before the first paint). */
+html.show-home .mobile-nav-bar .mobile-nav-item.active:not(#navHome) {
+  color: var(--ph-muted);
+}
+html.show-home .mobile-nav-bar .mobile-nav-item.active:not(#navHome) svg {
+  background: transparent;
+}
+html.show-home .mobile-nav-bar #navHome {
+  color: var(--ph-primary);
+  background: transparent;
+  box-shadow: none;
+}
+html.show-home .mobile-nav-bar #navHome svg {
+  background: var(--ph-primary-wash);
+}
+
+/* Phone tab building blocks (.mt = "mobile tab") */
+.mt {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ph-text);
+  line-height: 1.5;
+}
+.mt svg,
+.ph-sheet svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+.mt button {
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.mt button:focus-visible,
+.mt input:focus-visible {
+  outline: 3px solid var(--ph-primary);
+  outline-offset: 2px;
+}
+.mt-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 24px 16px;
+}
+.mt-top > div {
+  min-width: 0;
+}
+.mt-top h1 {
+  margin: 0;
+  font-size: 1.563rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--ph-text);
+}
+.mt-sub {
+  margin-top: 2px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ph-muted);
+}
+.mt-px {
+  padding: 0 24px;
+}
+.mt-fab {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ph-primary);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.mt-fab svg { width: 24px; height: 24px; }
+.mt-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--ph-line);
+  border-radius: var(--ph-r);
+  background: var(--ph-surface);
+  color: var(--ph-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.mt-btn:disabled,
+.mt-big-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.mt-big-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--ph-r);
+  background: var(--ph-primary);
+  color: #fff;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+.mt-chips {
+  display: flex;
+  flex-wrap: wrap; /* wrap instead of scrolling sideways, so no chip is ever cut off */
+  gap: 8px;
+}
+.mt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  max-width: 100%;
+  padding: 0 14px;
+  border: 1px solid var(--ph-line);
+  border-radius: 999px;
+  background: var(--ph-surface);
+  color: var(--ph-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.mt-chip > span:not(.n) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mt-chip svg { width: 16px; height: 16px; }
+.mt-chip .n {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ph-muted);
+}
+.mt-chip[aria-pressed="true"] {
+  background: var(--ph-primary-wash);
+  border-color: var(--ph-primary);
+  color: var(--ph-primary);
+}
+.mt-card {
+  background: var(--ph-surface);
+  border: 1px solid var(--ph-line);
+  border-radius: 16px;
+  padding: 16px;
+}
+.mt-label {
+  margin: 24px 0 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ph-muted);
+}
+.mt-group-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 24px 24px 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ph-muted);
+}
+.mt-list {
+  background: var(--ph-surface);
+  border-top: 1px solid var(--ph-line);
+  border-bottom: 1px solid var(--ph-line);
+}
+.mt-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 24px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+}
+.mt-row + .mt-row {
+  border-top: 1px solid var(--ph-line);
+}
+.mt-row:active {
+  background: var(--ph-primary-wash);
+}
+.mt-row-t {
+  flex: 1;
+  min-width: 0;
+}
+.mt-row-t b {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mt-row-t small {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--ph-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mt-money {
+  flex: none;
+  color: var(--ph-money);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.mt-empty {
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--ph-muted);
+}
+.mt-empty b {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1.125rem;
+  color: var(--ph-text);
+}
+.mt-empty .mt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+.mt-empty .mt-actions .mt-btn.primary {
+  background: var(--ph-primary);
+  border-color: var(--ph-primary);
+  color: #fff;
+}
+
+/* Settings (phone) */
+.mt-setting-list {
+  padding: 0 16px;
+}
+.mt-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 0;
+  cursor: pointer;
+}
+.mt-setting + .mt-setting {
+  border-top: 1px solid var(--ph-line);
+}
+.mt-setting-text {
+  min-width: 0;
+}
+.mt-setting-text b {
+  display: block;
+  font-weight: 700;
+}
+.mt-setting-text small {
+  display: block;
+  color: var(--ph-muted);
+  font-size: 0.8125rem;
+}
+
+/* Sheets: shared extras */
+.ph-sheet {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ph-sheet-grab {
+  width: 40px;
+  height: 4px;
+  margin: -8px auto 8px;
+  border-radius: 2px;
+  background: var(--ph-line);
+  flex: none;
+}
+.ph-sheet-sub {
+  margin: -8px 0 4px;
+  font-size: 0.875rem;
+  color: var(--ph-muted);
+}
+.ph-sheet-primary {
+  margin-top: 8px;
+  min-height: 52px;
+  border: 0;
+  border-radius: var(--ph-r);
+  background: var(--ph-primary);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ph-sheet-option small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+/* The shared date range card, when it sits inside the range sheet */
+#rangeSheetSlot .date-range-card {
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+}
+#rangeSheetSlot .date-range-head {
+  display: none;
+}
+/* Range sheet: match the phone colors, and stack From/To on narrow phones so
+   the dates are never cut off */
+#rangeSheetSlot .range-chip[aria-pressed="true"] {
+  border-color: var(--ph-primary);
+  background: var(--ph-primary);
+  color: #fff;
+}
+#rangeSheetSlot .range-custom .form-input {
+  min-height: 48px;
+  font-size: 1rem;
+}
+@media (max-width: 400px) {
+  #rangeSheetSlot .range-custom {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
