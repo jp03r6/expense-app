@@ -799,6 +799,7 @@ class ExpenseApp {
     this.setupPhoneTabs();
     this.setupPhoneReceipts();
     this.setupPhoneLedger();
+    this.setupPhonePdf();
   }
 
   // ---- Phone versions of Receipts, Ledger, PDF and Settings ----
@@ -1523,6 +1524,7 @@ class ExpenseApp {
         if (indicator) indicator.textContent = 'No receipts in this date range';
         document.getElementById('btnPrevPage').disabled = true;
         document.getElementById('btnNextPage').disabled = true;
+        this._syncPhonePager();
         return;
       }
 
@@ -1630,6 +1632,7 @@ class ExpenseApp {
     document.getElementById('previewPageIndicator').textContent = `Page ${pageNum} of ${this.previewTotalPages}`;
     document.getElementById('btnPrevPage').disabled = pageNum <= 1;
     document.getElementById('btnNextPage').disabled = pageNum >= this.previewTotalPages;
+    this._syncPhonePager();
   }
 
   async loadSampleReceipts() {
@@ -1976,7 +1979,76 @@ class ExpenseApp {
     this.renderPhonePdf();
   }
 
-  renderPhonePdf() {}
+  // ---- Phone PDF: range chip, layout tiles, details sheet, Create PDF ----
+  setupPhonePdf() {
+    document.getElementById('mPdfTiles').addEventListener('click', (e) => {
+      const tile = e.target.closest('[data-layout]');
+      if (!tile) return;
+      const radio = document.querySelector(`input[name="pdfLayout"][value="${tile.dataset.layout}"]`);
+      if (radio && !radio.checked) {
+        radio.checked = true;
+        radio.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      this.renderPhonePdf();
+    });
+    const name = document.getElementById('mPdfName');
+    const dept = document.getElementById('mPdfDept');
+    const cover = document.getElementById('mPdfCover');
+    document.getElementById('mPdfDetails').addEventListener('click', () => {
+      name.value = document.getElementById('pdfSubmitterName').value;
+      dept.value = document.getElementById('pdfDepartment').value;
+      cover.checked = document.getElementById('chkAddCover').checked;
+      this.openModal('modalPdfDetails');
+    });
+    // Copy into the laptop fields, so saving and the preview work the same
+    [[name, 'pdfSubmitterName'], [dept, 'pdfDepartment']].forEach(([el, id]) => {
+      el.addEventListener('input', () => {
+        const target = document.getElementById(id);
+        target.value = el.value;
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+        target.dispatchEvent(new Event('change', { bubbles: true }));
+        this.renderPhonePdf();
+      });
+    });
+    cover.addEventListener('change', () => {
+      const target = document.getElementById('chkAddCover');
+      target.checked = cover.checked;
+      target.dispatchEvent(new Event('change', { bubbles: true }));
+      this.renderPhonePdf();
+    });
+    document.getElementById('mPdfCreate').addEventListener('click', () => document.getElementById('btnCompilePdf').click());
+    document.getElementById('mPdfPrev').addEventListener('click', () => document.getElementById('btnPrevPage').click());
+    document.getElementById('mPdfNext').addEventListener('click', () => document.getElementById('btnNextPage').click());
+  }
+
+  renderPhonePdf() {
+    const createBtn = document.getElementById('mPdfCreate');
+    if (!createBtn) return;
+    const range = this._computeRange();
+    const rows = this._receiptsInRange(range);
+    const total = rows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    createBtn.disabled = rows.length === 0;
+    document.getElementById('mPdfCreateLabel').textContent = rows.length ? `Create PDF · ${this._money(total)}` : 'Create PDF';
+    const layout = this.selectedLayout || 'full';
+    document.querySelectorAll('#mPdfTiles [data-layout]').forEach(t =>
+      t.setAttribute('aria-checked', String(t.dataset.layout === layout)));
+    const who = (document.getElementById('pdfSubmitterName').value || '').trim();
+    const dept = (document.getElementById('pdfDepartment').value || '').trim();
+    const coverOn = document.getElementById('chkAddCover').checked;
+    document.getElementById('mPdfWho').textContent = who || dept ? [who, dept].filter(Boolean).join(' · ') : 'Add your name';
+    document.getElementById('mPdfWhoSub').textContent = `Name, department, cover sheet ${coverOn ? 'on' : 'off'}`;
+  }
+
+  // Mirror the laptop preview pager onto the phone pager
+  _syncPhonePager() {
+    const ind = document.getElementById('mPdfPageInd');
+    if (!ind) return;
+    ind.textContent = document.getElementById('previewPageIndicator').textContent;
+    document.getElementById('mPdfPrev').disabled = document.getElementById('btnPrevPage').disabled;
+    document.getElementById('mPdfNext').disabled = document.getElementById('btnNextPage').disabled;
+    const n = this.previewPdfDoc ? this.previewTotalPages : 0;
+    document.getElementById('mPdfPages').textContent = n ? `${n} ${n === 1 ? 'page' : 'pages'}` : '';
+  }
 
   _categorySlug(category) {
     return window.expenseLabels.categorySlug(category);

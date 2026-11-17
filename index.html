@@ -136,6 +136,27 @@
     </div>
   </div>
 
+  <!-- PHONE: PDF report details sheet -->
+  <div id="modalPdfDetails" class="modal-overlay ph-sheet-overlay">
+    <div class="ph-sheet" role="dialog" aria-modal="true" aria-labelledby="mPdfDetTitle">
+      <div class="ph-sheet-grab" aria-hidden="true"></div>
+      <h3 id="mPdfDetTitle" class="ph-sheet-title">Report details</h3>
+      <div class="ph-field">
+        <label for="mPdfName">Your name</label>
+        <input type="text" id="mPdfName" placeholder="e.g. Alex Johnson" autocomplete="name">
+      </div>
+      <div class="ph-field">
+        <label for="mPdfDept">Department / cost center</label>
+        <input type="text" id="mPdfDept" placeholder="e.g. Sales">
+      </div>
+      <label class="ph-switch-row" for="mPdfCover">
+        <span class="ph-sheet-text"><b>Summary cover sheet</b><small>First page lists every receipt and the total</small></span>
+        <input type="checkbox" id="mPdfCover" class="sync-switch" role="switch">
+      </label>
+      <button class="ph-sheet-primary modal-close" type="button">Done</button>
+    </div>
+  </div>
+
   <!-- PHONE: "Which receipts?" sheet. The shared date range card moves in here. -->
   <div id="modalRange" class="modal-overlay ph-sheet-overlay">
     <div class="ph-sheet" role="dialog" aria-modal="true" aria-labelledby="rangeSheetTitle">
@@ -374,7 +395,56 @@
 
     <!-- TAB 3: PDF COMPILATION & PREVIEW -->
     <section id="tab-pdf" class="tab-view">
-      <div class="range-slot" data-range-slot="tab-pdf">
+      <!-- PHONE: range chip, layout tiles, details row, Create PDF, preview -->
+      <div class="mt m-only" id="mPdf">
+        <div class="mt-top">
+          <div>
+            <h1>Make report</h1>
+            <div class="mt-sub">Pick receipts, a layout, then create the PDF</div>
+          </div>
+        </div>
+        <div class="mt-px">
+          <div class="mt-label mt-label-first">Receipts</div>
+          <div class="mt-chips js-range-chips" role="group" aria-label="Date range"></div>
+          <div class="mt-label" id="mPdfLayoutLabel">Layout</div>
+          <div class="mt-tiles" id="mPdfTiles" role="radiogroup" aria-labelledby="mPdfLayoutLabel">
+            <button type="button" class="mt-tile" role="radio" data-layout="full" aria-checked="true">
+              <span class="mini mini-1" aria-hidden="true"><i></i></span>Full page
+            </button>
+            <button type="button" class="mt-tile" role="radio" data-layout="two_up" aria-checked="false">
+              <span class="mini mini-2" aria-hidden="true"><i></i><i></i></span>2 per page
+            </button>
+            <button type="button" class="mt-tile" role="radio" data-layout="grid" aria-checked="false">
+              <span class="mini mini-4" aria-hidden="true"><i></i><i></i><i></i><i></i></span>4 per page
+            </button>
+          </div>
+          <button type="button" class="mt-card mt-detail-row" id="mPdfDetails" aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a6.5 6.5 0 0 1 13 0"/></svg>
+            <span class="mt-row-t"><b id="mPdfWho">Add your name</b><small id="mPdfWhoSub">Name, department, cover sheet</small></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+          <button type="button" class="mt-big-btn" id="mPdfCreate">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
+            <span id="mPdfCreateLabel">Create PDF</span>
+          </button>
+          <div class="mt-label mt-label-row"><span>Preview</span><span id="mPdfPages"></span></div>
+          <div class="mt-card mt-preview-card">
+            <!-- The PDF preview panel moves in here on phones -->
+            <div id="mPdfPreviewSlot"></div>
+            <div class="mt-pager">
+              <button type="button" class="mt-pager-btn" id="mPdfPrev" aria-label="Previous page">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <span id="mPdfPageInd" aria-live="polite">Page 1 of 1</span>
+              <button type="button" class="mt-pager-btn" id="mPdfNext" aria-label="Next page">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="range-slot d-only" data-range-slot="tab-pdf">
       <div class="date-range-card" id="dateRangeCard">
         <div class="date-range-head">
           <span class="date-range-step">1</span>
@@ -404,7 +474,7 @@
       </div>
       </div>
 
-      <div class="pdf-layout-picker">
+      <div class="pdf-layout-picker d-only">
         <div class="form-group">
           <label id="pdfLayoutLabel">Receipt Layout on Pages</label>
           <div class="layout-options" role="radiogroup" aria-labelledby="pdfLayoutLabel">
@@ -453,7 +523,7 @@
         </div>
       </div>
 
-      <div class="pdf-view-layout">
+      <div class="pdf-view-layout d-only" id="pdfPreviewHome">
         <!-- Settings Column -->
         <div class="pdf-settings-panel">
           <h3 class="settings-section-title">PDF Compilation Options</h3>
