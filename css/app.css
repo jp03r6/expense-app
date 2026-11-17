@@ -1134,8 +1134,9 @@ button {
   outline-offset: 2px;
 }
 .sync-warning {
-  margin: 12px 0 0;
-  padding: 10px 14px;
+  margin: 16px 0 0;
+  padding: 8px 12px;
+  text-align: center;
   border-radius: var(--radius-md);
   background: #fffbeb;
   border: 1px solid #f59e0b;
@@ -1148,7 +1149,94 @@ button {
   display: none;
 }
 #syncPairingArea {
-  margin-top: 16px;
+  margin-top: 20px;
+}
+/* Phone vs laptop layout inside the Sync card */
+#syncPairingArea[data-sync-device="phone"] .sync-only-laptop,
+#syncPairingArea[data-sync-device="laptop"] .sync-only-phone {
+  display: none !important;
+}
+.sync-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+.sync-scan-big {
+  width: 100%;
+  min-height: 64px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  justify-content: center;
+}
+.sync-main-help {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+.sync-main-help-strong {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-main, inherit);
+}
+.qr-code-box.qr-code-large {
+  padding: 20px;
+}
+.sync-room-small {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+.sync-room-small .js-room-code {
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-main, inherit);
+}
+.sync-other {
+  margin-top: 14px;
+  text-align: center;
+}
+.sync-other > summary {
+  display: inline-block;
+  cursor: pointer;
+  list-style: none;
+  padding: 10px 8px;
+  min-height: 44px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sync-other > summary::-webkit-details-marker {
+  display: none;
+}
+.sync-other-body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 16px;
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+.sync-other-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.sync-other-body > .btn {
+  align-self: flex-start;
+}
+.sync-other-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 /* Date range picker (shared by the PDF and Ledger tabs) */

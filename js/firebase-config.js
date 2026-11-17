@@ -397,7 +397,7 @@ class CloudSyncManager {
         label = `Synced (${peerCount + 1} devices)`;
         isLive = true;
       } else {
-        label = 'Online (Waiting for phone)';
+        label = 'Waiting for other device';
         isLive = true;
       }
     } else if (this.status === 'connecting') {
