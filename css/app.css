@@ -1233,6 +1233,9 @@ button {
 .sync-other-body > .btn {
   align-self: flex-start;
 }
+.sync-room-line {
+  text-align: center;
+}
 .sync-other-actions {
   display: flex;
   flex-wrap: wrap;

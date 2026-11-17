@@ -330,7 +330,6 @@
             <div class="sync-main sync-only-laptop">
               <div class="qr-code-box qr-code-large js-sync-qr" id="syncQrCodeBox"></div>
               <p class="sync-main-help sync-main-help-strong">On your phone, open ExpenseSnap &gt; Settings &gt; Sync, then scan this.</p>
-              <p class="sync-room-small">Room code: <span id="displayRoomCode" class="js-room-code">EXP-XXXXXX</span></p>
             </div>
 
             <p id="syncWarning" class="sync-warning">⚠️ Uses a public relay, not encrypted yet.</p>
@@ -338,11 +337,12 @@
             <details id="syncOtherWays" class="sync-other">
               <summary>Other ways to connect</summary>
               <div class="sync-other-body">
-                <!-- Phone: show this phone's own QR code and room code -->
+                <!-- Phone: show this phone's own QR code -->
                 <div class="sync-only-phone sync-other-qr">
                   <div class="qr-code-box js-sync-qr" id="syncQrCodeBoxPhone"></div>
-                  <p class="sync-room-small">Room code: <span class="js-room-code">EXP-XXXXXX</span></p>
                 </div>
+                <!-- Room code lives only here, on both phone and laptop -->
+                <p class="sync-room-small sync-room-line">Room code: <span id="displayRoomCode" class="js-room-code">EXP-XXXXXX</span></p>
                 <!-- Laptop: scan another device's QR code with this one -->
                 <button id="btnOpenQrScanner" class="btn btn-secondary btn-sm sync-only-laptop">
                   <span>📷 Scan a QR code with this device</span>
