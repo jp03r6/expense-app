@@ -566,15 +566,12 @@ class ExpenseApp {
     });
 
     // Backup & Restore
-    document.getElementById('btnExportBackup').addEventListener('click', async () => {
-      const backupJson = await window.store.exportFullBackup();
-      const blob = new Blob([backupJson], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `ExpenseSnap_Backup_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-      this.showToast('Backup file downloaded', 'success');
+    document.getElementById('btnExportBackup').addEventListener('click', () => this.exportBackup());
+    document.getElementById('mBakShare').addEventListener('click', () => this._shareBackup());
+    document.getElementById('mBakDownload').addEventListener('click', () => {
+      const file = this._pendingBackup;
+      this.closeModal('modalBackup');
+      if (file) this._downloadBackup(file);
     });
 
     document.getElementById('inputRestoreBackup').addEventListener('change', async (e) => {
@@ -591,6 +588,83 @@ class ExpenseApp {
       }
     });
 
+  }
+
+  // --- Export backup: let the user choose where the file goes ---
+  _backupFileName() {
+    return `ExpenseSnap-backup-${this._localISO(new Date())}.json`;
+  }
+
+  async exportBackup() {
+    const name = this._backupFileName();
+    // 1) Save As dialog (Chrome/Edge on laptops, Chrome 132+ on Android).
+    //    Ask for the file first, while the click still counts as a user gesture.
+    if (typeof window.showSaveFilePicker === 'function') {
+      let handle;
+      try {
+        handle = await window.showSaveFilePicker({
+          suggestedName: name,
+          id: 'expensesnap-backup',
+          types: [{ description: 'ExpenseSnap backup', accept: { 'application/json': ['.json'] } }],
+        });
+      } catch (err) {
+        if (err && err.name === 'AbortError') return; // cancelled: say nothing
+        handle = null; // picker blocked: fall through to the other ways
+      }
+      if (handle) {
+        try {
+          const json = await window.store.exportFullBackup();
+          const writable = await handle.createWritable();
+          await writable.write(new Blob([json], { type: 'application/json' }));
+          await writable.close();
+          this._backupDone(`Backup saved as ${handle.name || name}`);
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;
+          this.showToast('Could not save the backup: ' + (err && err.message || err), 'error');
+        }
+        return;
+      }
+    }
+    const json = await window.store.exportFullBackup();
+    const file = new File([json], name, { type: 'application/json' });
+    // 2) Share sheet with a file (iPhone, older Android): offer "Save to a folder…" or "Download".
+    let canShareFile = false;
+    try { canShareFile = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] })); } catch (e) { canShareFile = false; }
+    if (canShareFile) {
+      this._pendingBackup = file;
+      document.getElementById('mBakName').textContent = name;
+      this.openModal('modalBackup');
+      return;
+    }
+    // 3) Plain download.
+    this._downloadBackup(file);
+  }
+
+  async _shareBackup() {
+    const file = this._pendingBackup;
+    if (!file) return;
+    try {
+      await navigator.share({ files: [file], title: file.name });
+      this.closeModal('modalBackup');
+      this._backupDone('Backup sent to the app you picked');
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // closed the share sheet: stay here
+      this.showToast('Could not share the backup. Try Download instead.', 'error');
+    }
+  }
+
+  _downloadBackup(file) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file);
+    a.download = file.name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    this._backupDone('Backup file downloaded');
+  }
+
+  _backupDone(message) {
+    try { localStorage.setItem('expensesnap_lastBackupAt', new Date().toISOString()); } catch (e) { /* private mode */ }
+    this.showToast(message, 'success');
   }
 
   switchTab(tabId) {

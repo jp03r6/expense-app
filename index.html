@@ -14,7 +14,7 @@
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   
-  <link rel="stylesheet" href="css/app.css?v=18">
+  <link rel="stylesheet" href="css/app.css?v=19">
   <script>
     // Phones (narrow or touch screen) open on the quick-capture home screen.
     // Decided before the first paint so the full app never flashes first.
@@ -131,6 +131,24 @@
       <button id="mExpCsv" class="ph-sheet-option" type="button">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg>
         <span class="ph-sheet-text"><b>Download CSV</b><small>For accounting software</small></span>
+      </button>
+      <button class="ph-sheet-cancel modal-close" type="button">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Export backup: choose where the file goes (shown where the share sheet can take files) -->
+  <div id="modalBackup" class="modal-overlay ph-sheet-overlay">
+    <div class="ph-sheet" role="dialog" aria-modal="true" aria-labelledby="mBakTitle">
+      <div class="ph-sheet-grab" aria-hidden="true"></div>
+      <h3 id="mBakTitle" class="ph-sheet-title">Export backup</h3>
+      <p class="ph-sheet-sub" id="mBakSub">Save to a folder lets you pick Drive or Files and choose or make a folder. Download puts it in Downloads.</p>
+      <button id="mBakShare" class="ph-sheet-option" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v5M9.5 13.5h5"/></svg>
+        <span class="ph-sheet-text"><b>Save to a folder…</b><small>Drive, Files or another app</small></span>
+      </button>
+      <button id="mBakDownload" class="ph-sheet-option" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
+        <span class="ph-sheet-text"><b>Download</b><small id="mBakName"></small></span>
       </button>
       <button class="ph-sheet-cancel modal-close" type="button">Cancel</button>
     </div>
@@ -630,7 +648,7 @@
             <div class="mt-li mt-li-static">
               <span class="mt-li-ic" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span>
               <span class="mt-li-main"><b>Version</b></span>
-              <span class="mt-li-value" id="mAppVersion">v18</span>
+              <span class="mt-li-value" id="mAppVersion">v19</span>
             </div>
             <div class="mt-li mt-li-static">
               <span class="mt-li-ic" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg></span>
@@ -716,7 +734,7 @@
             </button>
             <label class="btn btn-secondary" style="cursor: pointer;">
               <span>📥 Restore Backup</span>
-              <input type="file" id="inputRestoreBackup" accept=".json" style="display: none;">
+              <input type="file" id="inputRestoreBackup" accept=".json,application/json" style="display: none;">
             </label>
           </div>
         </div>
@@ -870,11 +888,11 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <!-- Application Logic Modules -->
-  <script src="js/store.js?v=18"></script>
-  <script src="js/receipt-manager.js?v=18"></script>
-  <script src="js/pdf-compiler.js?v=18"></script>
-  <script src="js/spreadsheet-helper.js?v=18"></script>
-  <script src="js/firebase-config.js?v=18"></script>
-  <script src="js/app.js?v=18"></script>
+  <script src="js/store.js?v=19"></script>
+  <script src="js/receipt-manager.js?v=19"></script>
+  <script src="js/pdf-compiler.js?v=19"></script>
+  <script src="js/spreadsheet-helper.js?v=19"></script>
+  <script src="js/firebase-config.js?v=19"></script>
+  <script src="js/app.js?v=19"></script>
 </body>
 </html>

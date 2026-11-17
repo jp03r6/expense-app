@@ -3683,3 +3683,7 @@ html.is-phone #mSyncSlot .emo {
 
 /* phone-only icons never render on laptop */
 html:not(.is-phone) .m-icon{display:none!important}
+
+/* Export-backup sheet: centered card when it shows on a laptop (Safari) */
+html:not(.is-phone) #modalBackup{align-items:center;padding:24px}
+html:not(.is-phone) #modalBackup .ph-sheet{border-radius:20px}
