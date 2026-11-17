@@ -2,6 +2,10 @@
  * ExpenseSnap - Main UI Application Controller
  */
 
+// Phone vs laptop: narrow or touch screens get the phone layouts (home screen,
+// Sync scan-first). Must match the check in index.html's <head>.
+const PHONE_QUERY = '(max-width: 768px), (pointer: coarse)';
+
 class ExpenseApp {
   constructor() {
     this.currentReceipts = [];
@@ -73,11 +77,12 @@ class ExpenseApp {
     });
     this.setupSyncDeviceLayout();
     this.renderQrCode();
+    this.setupPhoneHome();
 
     // A pairing link (?room=...) saves the room code, but never turns Sync on
     // by itself. Point the user at the switch instead.
     if (new URLSearchParams(window.location.search).has('room') && !window.cloudSyncManager.isEnabled()) {
-      this.switchTab('tab-settings');
+      this.showFullApp('tab-settings');
       this.showToast('Room code saved. Turn on Sync to connect.', 'info');
     }
   }
@@ -141,7 +146,7 @@ class ExpenseApp {
   setupSyncDeviceLayout() {
     const area = document.getElementById('syncPairingArea');
     if (!area || !window.matchMedia) return;
-    const mq = window.matchMedia('(max-width: 768px), (pointer: coarse)');
+    const mq = window.matchMedia(PHONE_QUERY);
     const apply = () => { area.dataset.syncDevice = mq.matches ? 'phone' : 'laptop'; };
     apply();
     if (mq.addEventListener) mq.addEventListener('change', apply);
@@ -293,20 +298,7 @@ class ExpenseApp {
     });
 
     // Add Receipt Buttons
-    const openAddModal = async () => {
-      this.editingReceiptId = null;
-      this.stagedReceiptData = null;
-      document.getElementById('modalReceiptTitle').textContent = 'Add Receipt or PDF';
-      document.getElementById('uploadPreviewSection').style.display = 'none';
-      document.getElementById('dropzone').style.display = 'block';
-      document.getElementById('inputDate').value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
-      document.getElementById('inputAmount').value = '';
-      document.getElementById('inputMerchant').value = '';
-      document.getElementById('inputNotes').value = '';
-      this._fillLabeledSelect('inputCategory', window.expenseLabels.CATEGORIES, 'Meals', window.expenseLabels.canonicalCategory);
-      this._fillLabeledSelect('inputPayment', window.expenseLabels.PAYMENTS, 'Corporate Card', window.expenseLabels.canonicalPayment);
-      this.openModal('modalAddReceipt');
-    };
+    const openAddModal = () => this.openAddModal();
 
     document.getElementById('btnAddReceipt').addEventListener('click', openAddModal);
     document.getElementById('btnAddReceiptHeader').addEventListener('click', openAddModal);
@@ -404,8 +396,13 @@ class ExpenseApp {
         this.showToast('Receipt updated', 'success');
       } else {
         // Add new receipt
+        let staged = this.stagedReceiptData;
+        if (staged.noReceipt) {
+          const { noReceipt, ...rest } = staged;
+          staged = { ...rest, ...this._makeNoReceiptImage({ date, amount, merchant, category }) };
+        }
         const added = await window.store.addReceipt({
-          ...this.stagedReceiptData,
+          ...staged,
           date,
           amount,
           merchant,
@@ -670,6 +667,165 @@ class ExpenseApp {
     if (modal) modal.classList.remove('open');
   }
 
+  // Opens the add-receipt form, empty and ready for a photo or PDF.
+  openAddModal() {
+    this.editingReceiptId = null;
+    this.stagedReceiptData = null;
+    document.getElementById('modalReceiptTitle').textContent = 'Add Receipt or PDF';
+    document.getElementById('uploadPreviewSection').style.display = 'none';
+    document.getElementById('dropzone').style.display = 'block';
+    document.getElementById('inputDate').value = this._localISO(new Date());
+    document.getElementById('inputAmount').value = '';
+    document.getElementById('inputMerchant').value = '';
+    document.getElementById('inputNotes').value = '';
+    this._fillLabeledSelect('inputCategory', window.expenseLabels.CATEGORIES, 'Meals', window.expenseLabels.canonicalCategory);
+    this._fillLabeledSelect('inputPayment', window.expenseLabels.PAYMENTS, 'Corporate Card', window.expenseLabels.canonicalPayment);
+    this.openModal('modalAddReceipt');
+  }
+
+  // Opens a saved receipt in the edit form.
+  openEditReceipt(r, title = 'Edit Receipt') {
+    this.editingReceiptId = r.id;
+    this.stagedReceiptData = null;
+    document.getElementById('modalReceiptTitle').textContent = title;
+    document.getElementById('inputDate').value = r.date || '';
+    document.getElementById('inputAmount').value = r.amount || '';
+    document.getElementById('inputMerchant').value = r.merchant || '';
+    this._fillLabeledSelect('inputCategory', window.expenseLabels.CATEGORIES, r.category, window.expenseLabels.canonicalCategory);
+    this._fillLabeledSelect('inputPayment', window.expenseLabels.PAYMENTS, r.paymentMethod, window.expenseLabels.canonicalPayment);
+    document.getElementById('inputNotes').value = r.notes || '';
+
+    document.getElementById('uploadPreviewImg').src = r.dataUrl || r.thumbnailDataUrl;
+    document.getElementById('uploadPreviewSection').style.display = 'flex';
+    document.getElementById('dropzone').style.display = 'none';
+
+    this.openModal('modalAddReceipt');
+  }
+
+  // "No receipt": the same form, but saving does not need a photo. A simple
+  // "No receipt" page image is made at save time so the PDF, thumbnails and
+  // exports work exactly like any other receipt.
+  openNoReceiptForm() {
+    this.openAddModal();
+    this.stagedReceiptData = { type: 'image', noReceipt: true, fileName: 'No receipt', mimeType: 'image/png' };
+    document.getElementById('modalReceiptTitle').textContent = 'Add expense without a receipt';
+    document.getElementById('dropzone').style.display = 'none';
+    document.getElementById('uploadPreviewSection').style.display = 'none';
+  }
+
+  _makeNoReceiptImage({ date, amount, merchant, category }) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 850;
+    canvas.height = 1100;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([18, 12]);
+    ctx.strokeRect(60, 60, canvas.width - 120, canvas.height - 120);
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#0f172a';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 64px sans-serif';
+    ctx.fillText('No receipt', canvas.width / 2, 380);
+    ctx.font = '40px sans-serif';
+    ctx.fillStyle = '#334155';
+    const lines = [merchant, date ? this._prettyDate(date) : '', category, `$${(amount || 0).toFixed(2)}`];
+    lines.filter(Boolean).forEach((line, i) => ctx.fillText(line, canvas.width / 2, 500 + i * 70));
+    const dataUrl = canvas.toDataURL('image/png');
+    const thumb = document.createElement('canvas');
+    thumb.width = 170;
+    thumb.height = 220;
+    thumb.getContext('2d').drawImage(canvas, 0, 0, thumb.width, thumb.height);
+    return { dataUrl, thumbnailDataUrl: thumb.toDataURL('image/png') };
+  }
+
+  // ---------- Phone home (quick capture) ----------
+  // Phones (narrow or touch screen) open here every time; laptops never do.
+  isPhone() {
+    return !!(window.matchMedia && window.matchMedia(PHONE_QUERY).matches);
+  }
+
+  setupPhoneHome() {
+    const root = document.documentElement;
+    const mq = window.matchMedia ? window.matchMedia(PHONE_QUERY) : null;
+    if (mq && mq.addEventListener) {
+      mq.addEventListener('change', () => {
+        root.classList.toggle('is-phone', mq.matches);
+        if (!mq.matches) root.classList.remove('show-home');
+      });
+    }
+    // index.html already added these before the first paint; keep them in sync.
+    root.classList.toggle('is-phone', this.isPhone());
+    if (this.isPhone()) this.showPhoneHome();
+
+    const cam = document.getElementById('phCameraInput');
+    const upload = document.getElementById('phUploadInput');
+    document.getElementById('phSnap').addEventListener('click', () => cam.click());
+    document.getElementById('phUpload').addEventListener('click', () => upload.click());
+    // Photos and PDFs both go through the same add form (PDFs use the PDF path)
+    [cam, upload].forEach(input => {
+      input.addEventListener('change', async () => {
+        const file = input.files && input.files[0];
+        input.value = '';
+        if (!file) return;
+        this.openAddModal();
+        await this.handleFileUpload(file);
+      });
+    });
+    document.getElementById('phNoReceipt').addEventListener('click', () => this.openNoReceiptForm());
+    document.getElementById('phSettings').addEventListener('click', () => this.showFullApp('tab-settings'));
+    document.getElementById('phFullApp').addEventListener('click', () => this.showFullApp('tab-receipts'));
+    document.getElementById('navHome').addEventListener('click', () => this.showPhoneHome());
+  }
+
+  showPhoneHome() {
+    document.documentElement.classList.add('show-home');
+    this.renderPhoneHome();
+    window.scrollTo(0, 0);
+  }
+
+  showFullApp(tabId = 'tab-receipts') {
+    document.documentElement.classList.remove('show-home');
+    this.switchTab(tabId);
+    window.scrollTo(0, 0);
+  }
+
+  renderPhoneHome() {
+    const label = document.getElementById('phMonthLabel');
+    if (!label) return;
+    const receipts = this.currentReceipts || [];
+    const now = new Date();
+    const monthPrefix = this._localISO(now).slice(0, 7); // YYYY-MM, local time
+    const inMonth = receipts.filter(r => String(r.date || '').slice(0, 7) === monthPrefix);
+    const total = inMonth.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+    const monthName = now.toLocaleDateString('en-US', { month: 'long' });
+    label.textContent = `${monthName} so far · ${inMonth.length} ${inMonth.length === 1 ? 'receipt' : 'receipts'}`;
+    document.getElementById('phMonthTotal').textContent = this._money(total);
+
+    const list = document.getElementById('phRecentList');
+    const empty = document.getElementById('phRecentEmpty');
+    list.innerHTML = '';
+    empty.hidden = receipts.length > 0;
+    receipts.slice(0, 3).forEach(r => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'ph-row';
+      const when = r.date ? this._prettyDate(r.date, false) : '';
+      const cat = window.expenseLabels.displayCategory(r.category);
+      row.innerHTML = `<span class="ph-row-text"><b>${this._escape(r.merchant || 'Receipt')}</b>` +
+        `<small>${this._escape([when, cat].filter(Boolean).join(' · '))}</small></span>` +
+        `<span class="ph-money">${this._money(parseFloat(r.amount) || 0)}</span>`;
+      row.addEventListener('click', () => this.openEditReceipt(r));
+      list.appendChild(row);
+    });
+  }
+
+  _money(n) {
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
   async handleFileUpload(file) {
     try {
       this.showToast('Processing file...', 'info');
@@ -736,6 +892,9 @@ class ExpenseApp {
     // 6. Date range picker (month shortcuts, count and total) + preview
     this.renderDateRange();
     if (this.activeTab === 'tab-pdf') this.schedulePdfPreviewRefresh(false);
+
+    // 7. Phone home screen (month total and recent receipts)
+    this.renderPhoneHome();
   }
 
   renderReceiptsGrid() {
@@ -809,22 +968,9 @@ class ExpenseApp {
       });
 
       // Edit Details
-      card.querySelector('.btn-edit').addEventListener('click', async (e) => {
+      card.querySelector('.btn-edit').addEventListener('click', (e) => {
         e.stopPropagation();
-        this.editingReceiptId = r.id;
-        document.getElementById('modalReceiptTitle').textContent = `Edit Receipt #${idx + 1}`;
-        document.getElementById('inputDate').value = r.date || '';
-        document.getElementById('inputAmount').value = r.amount || '';
-        document.getElementById('inputMerchant').value = r.merchant || '';
-        this._fillLabeledSelect('inputCategory', window.expenseLabels.CATEGORIES, r.category, window.expenseLabels.canonicalCategory);
-        this._fillLabeledSelect('inputPayment', window.expenseLabels.PAYMENTS, r.paymentMethod, window.expenseLabels.canonicalPayment);
-        document.getElementById('inputNotes').value = r.notes || '';
-
-        document.getElementById('uploadPreviewImg').src = r.dataUrl || r.thumbnailDataUrl;
-        document.getElementById('uploadPreviewSection').style.display = 'flex';
-        document.getElementById('dropzone').style.display = 'none';
-
-        this.openModal('modalAddReceipt');
+        this.openEditReceipt(r, `Edit Receipt #${idx + 1}`);
       });
 
       // Delete
