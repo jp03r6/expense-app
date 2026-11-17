@@ -798,6 +798,7 @@ class ExpenseApp {
     document.getElementById('navHome').addEventListener('click', () => this.showPhoneHome());
     this.setupPhoneTabs();
     this.setupPhoneReceipts();
+    this.setupPhoneLedger();
   }
 
   // ---- Phone versions of Receipts, Ledger, PDF and Settings ----
@@ -1264,6 +1265,79 @@ class ExpenseApp {
     }
   }
 
+  // ---- Phone Ledger: totals card, category breakdown, short rows ----
+  setupPhoneLedger() {
+    document.getElementById('mLedExport').addEventListener('click', () => {
+      const range = this._computeRange();
+      const rows = this._receiptsInRange(range);
+      const total = rows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+      document.getElementById('mExpTitle').textContent = `Export ${rows.length} ${rows.length === 1 ? 'receipt' : 'receipts'}`;
+      document.getElementById('mExpSub').textContent = `${range.label} · ${this._money(total)}`;
+      document.getElementById('mExpXlsxName').textContent = `${this._exportMeta(range).fileBase}.xlsx`;
+      this.openModal('modalExport');
+    });
+    // The sheet runs the same export code as the laptop buttons
+    [['mExpCopy', 'btnCopyExcel'], ['mExpXlsx', 'btnExportXlsx'], ['mExpCsv', 'btnExportCsv']].forEach(([phoneId, deskId]) => {
+      document.getElementById(phoneId).addEventListener('click', () => {
+        this.closeModal('modalExport');
+        document.getElementById(deskId).click();
+      });
+    });
+    document.getElementById('mLedList').addEventListener('click', (e) => {
+      const row = e.target.closest('[data-id]');
+      if (!row) return;
+      const r = this.allReceipts.find(x => String(x.id) === row.dataset.id);
+      if (r) this.openEditReceipt(r, 'Edit Receipt');
+    });
+  }
+
+  renderPhoneLedger(range, rows) {
+    const list = document.getElementById('mLedList');
+    if (!list) return;
+    const labels = window.expenseLabels;
+    const total = rows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    document.getElementById('mLedLabel').textContent = `${range.label} · ${rows.length} ${rows.length === 1 ? 'receipt' : 'receipts'}`;
+    document.getElementById('mLedTotal').textContent = this._money(total);
+    document.getElementById('mLedExport').disabled = rows.length === 0;
+
+    const byCat = new Map();
+    rows.forEach(r => {
+      const c = labels.displayCategory(r.category);
+      byCat.set(c, (byCat.get(c) || 0) + (parseFloat(r.amount) || 0));
+    });
+    const cats = [...byCat.entries()].sort((a, b) => b[1] - a[1]);
+    const max = cats.length ? cats[0][1] : 0;
+    document.getElementById('mLedBars').innerHTML = cats.map(([c, amt]) => {
+      const pct = max > 0 ? Math.max(2, Math.round((amt / max) * 100)) : 0;
+      return `<span>${this._escape(c)}</span><span class="bar" aria-hidden="true"><i style="width:${pct}%"></i></span><span class="amt">${this._money(amt)}</span>`;
+    }).join('');
+
+    const empty = document.getElementById('mLedEmpty');
+    document.getElementById('mLedRowsWrap').hidden = rows.length === 0;
+    empty.hidden = rows.length !== 0;
+    if (!rows.length) {
+      empty.innerHTML = this.allReceipts.length === 0
+        ? '<b>No receipts yet</b><span>Add receipts and they show up here as a spreadsheet.</span>'
+        : `<b>Nothing in ${this._escape(range.label)}</b><span>Pick another range above.</span>`;
+    }
+
+    // Newest first on the phone; exports stay oldest first
+    list.innerHTML = [...rows].reverse().map(r => {
+      let m = '', d = '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(r.date || '')) {
+        const [y, mo, da] = r.date.split('-').map(Number);
+        m = new Date(y, mo - 1, da).toLocaleDateString('en-US', { month: 'short' });
+        d = String(da);
+      }
+      const meta = [labels.displayCategory(r.category), labels.displayPayment(r.paymentMethod)];
+      if (r.notes) meta.push(r.notes);
+      return `<button type="button" class="mt-row" data-id="${this._escape(String(r.id))}" aria-label="${this._escape(`Edit ${r.merchant}, ${this._money(r.amount)}`)}">` +
+        `<span class="mt-date" aria-hidden="true"><span class="m" style="display:block">${m}</span><span class="d" style="display:block">${d || '–'}</span></span>` +
+        `<span class="mt-row-t"><b>${this._escape(r.merchant || 'Receipt')}</b><small>${this._escape(meta.join(' · '))}</small></span>` +
+        `<span class="mt-money">${this._money(r.amount)}</span></button>`;
+    }).join('');
+  }
+
   renderLedgerTable() {
     const tbody = document.getElementById('ledgerTableBody');
     tbody.innerHTML = '';
@@ -1271,6 +1345,7 @@ class ExpenseApp {
     // Same date range as the PDF tab, oldest first
     const range = this._computeRange();
     const rows = this._receiptsInRange(range);
+    this.renderPhoneLedger(range, rows);
     const total = rows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
     document.getElementById('ledgerCount').textContent = rows.length;
     document.getElementById('ledgerTotal').textContent = `$${total.toFixed(2)}`;

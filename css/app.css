@@ -3215,3 +3215,65 @@ html.show-home .mobile-nav-bar #navHome svg {
   outline: 3px solid var(--ph-primary);
   outline-offset: 2px;
 }
+
+/* Ledger (phone) */
+.mt-led-card-wrap {
+  margin-top: 16px;
+}
+.mt-led-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ph-muted);
+}
+.mt-led-total {
+  font-size: 2.441rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--ph-money);
+  font-variant-numeric: tabular-nums;
+}
+.mt-bars {
+  display: grid;
+  grid-template-columns: auto minmax(24px, 1fr) auto;
+  gap: 6px 12px;
+  align-items: center;
+  margin-top: 12px;
+  font-size: 0.875rem;
+}
+.mt-bars:empty {
+  display: none;
+}
+.mt-bars .bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ph-primary-wash);
+  overflow: hidden;
+}
+.mt-bars .bar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--ph-primary);
+}
+.mt-bars .amt {
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.mt-date {
+  flex: none;
+  width: 40px;
+  text-align: center;
+  line-height: 1.1;
+}
+.mt-date .m {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--ph-muted);
+}
+.mt-date .d {
+  font-size: 1.25rem;
+  font-weight: 800;
+}

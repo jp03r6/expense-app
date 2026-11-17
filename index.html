@@ -114,6 +114,28 @@
     </div>
   </div>
 
+  <!-- PHONE: Ledger export sheet -->
+  <div id="modalExport" class="modal-overlay ph-sheet-overlay">
+    <div class="ph-sheet" role="dialog" aria-modal="true" aria-labelledby="mExpTitle">
+      <div class="ph-sheet-grab" aria-hidden="true"></div>
+      <h3 id="mExpTitle" class="ph-sheet-title">Export</h3>
+      <p class="ph-sheet-sub" id="mExpSub"></p>
+      <button id="mExpCopy" class="ph-sheet-option" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <span class="ph-sheet-text"><b>Copy for Excel</b><small>Paste into your company sheet</small></span>
+      </button>
+      <button id="mExpXlsx" class="ph-sheet-option" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+        <span class="ph-sheet-text"><b>Download Excel (.xlsx)</b><small id="mExpXlsxName"></small></span>
+      </button>
+      <button id="mExpCsv" class="ph-sheet-option" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg>
+        <span class="ph-sheet-text"><b>Download CSV</b><small>For accounting software</small></span>
+      </button>
+      <button class="ph-sheet-cancel modal-close" type="button">Cancel</button>
+    </div>
+  </div>
+
   <!-- PHONE: "Which receipts?" sheet. The shared date range card moves in here. -->
   <div id="modalRange" class="modal-overlay ph-sheet-overlay">
     <div class="ph-sheet" role="dialog" aria-modal="true" aria-labelledby="rangeSheetTitle">
@@ -277,8 +299,31 @@
     <!-- TAB 2: SPREADSHEET LEDGER -->
     <section id="tab-ledger" class="tab-view">
       <!-- The shared "Which receipts?" card moves here when this tab is open -->
-      <div class="range-slot" data-range-slot="tab-ledger"></div>
-      <div class="ledger-container">
+      <!-- PHONE: totals card, short rows, one Export button -->
+      <div class="mt m-only" id="mLedger">
+        <div class="mt-top">
+          <h1>Ledger</h1>
+          <button type="button" class="mt-btn" id="mLedExport" aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>Export
+          </button>
+        </div>
+        <div class="mt-px"><div class="mt-chips js-range-chips" role="group" aria-label="Date range"></div></div>
+        <div class="mt-px mt-led-card-wrap">
+          <div class="mt-card">
+            <div class="mt-led-label" id="mLedLabel"></div>
+            <div class="mt-led-total" id="mLedTotal">$0.00</div>
+            <div class="mt-bars" id="mLedBars"></div>
+          </div>
+        </div>
+        <div id="mLedRowsWrap">
+          <div class="mt-group-h"><span>Expenses</span><span>Tap a row to edit</span></div>
+          <div class="mt-list" id="mLedList"></div>
+        </div>
+        <div class="mt-empty" id="mLedEmpty" hidden></div>
+      </div>
+
+      <div class="range-slot d-only" data-range-slot="tab-ledger"></div>
+      <div class="ledger-container d-only">
         <div class="ledger-toolbar">
           <div class="ledger-stats">
             <div class="stat-box">
