@@ -797,6 +797,7 @@ class ExpenseApp {
     document.getElementById('phSettings').addEventListener('click', () => this.showFullApp('tab-settings'));
     document.getElementById('navHome').addEventListener('click', () => this.showPhoneHome());
     this.setupPhoneTabs();
+    this.setupPhoneReceipts();
   }
 
   // ---- Phone versions of Receipts, Ledger, PDF and Settings ----
@@ -937,7 +938,7 @@ class ExpenseApp {
   }
 
   _money(n) {
-    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return '$' + (parseFloat(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   async handleFileUpload(file) {
@@ -999,6 +1000,7 @@ class ExpenseApp {
 
     // 4. Render Receipts Grid
     this.renderReceiptsGrid();
+    this.renderPhoneReceipts();
 
     // 5. Render Spreadsheet Ledger Table
     this.renderLedgerTable();
@@ -1070,15 +1072,7 @@ class ExpenseApp {
       // Quick Rotate
       card.querySelector('.btn-quick-rotate').addEventListener('click', async (e) => {
         e.stopPropagation();
-        const currentRot = (r.rotation || 0) + 90;
-        const opt = await window.receiptManager.optimizeImage(r.dataUrl, 90, r.enhanceContrast);
-        const updated = await window.store.updateReceipt(r.id, {
-          rotation: currentRot % 360,
-          dataUrl: opt.dataUrl,
-          thumbnailDataUrl: opt.thumbnailUrl
-        });
-        if (updated) window.cloudSyncManager.broadcastReceiptUpdated(updated);
-        this.showToast('Receipt rotated 90°', 'info');
+        await this.rotateReceipt(r);
       });
 
       // Edit Details
@@ -1090,15 +1084,184 @@ class ExpenseApp {
       // Delete
       card.querySelector('.btn-delete').addEventListener('click', async (e) => {
         e.stopPropagation();
-        if (confirm(`Delete receipt from ${r.merchant}?`)) {
-          await window.store.deleteReceipt(r.id);
-          window.cloudSyncManager.broadcastReceiptDeleted(r.id);
-          this.showToast('Receipt removed', 'info');
-        }
+        await this.deleteReceiptWithConfirm(r);
       });
 
       grid.appendChild(card);
     });
+  }
+
+  // Rotate a receipt photo 90° (used by the laptop grid and the phone detail sheet)
+  async rotateReceipt(r) {
+    const currentRot = (r.rotation || 0) + 90;
+    const opt = await window.receiptManager.optimizeImage(r.dataUrl, 90, r.enhanceContrast);
+    const updated = await window.store.updateReceipt(r.id, {
+      rotation: currentRot % 360,
+      dataUrl: opt.dataUrl,
+      thumbnailDataUrl: opt.thumbnailUrl
+    });
+    if (updated) window.cloudSyncManager.broadcastReceiptUpdated(updated);
+    this.showToast('Receipt rotated 90°', 'info');
+    return updated;
+  }
+
+  async deleteReceiptWithConfirm(r) {
+    if (!confirm(`Delete receipt from ${r.merchant}?`)) return false;
+    await window.store.deleteReceipt(r.id);
+    window.cloudSyncManager.broadcastReceiptDeleted(r.id);
+    this.showToast('Receipt removed', 'info');
+    return true;
+  }
+
+  _openZoom(r) {
+    document.getElementById('zoomTitle').textContent = `${r.merchant} - $${(parseFloat(r.amount) || 0).toFixed(2)}`;
+    document.getElementById('zoomImg').src = r.dataUrl || r.thumbnailDataUrl;
+    this.openModal('modalZoom');
+  }
+
+  _shortDate(iso) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? this._prettyDate(iso, false) : 'No date';
+  }
+
+  // ---- Phone Receipts: search, category chips, list grouped by month ----
+  setupPhoneReceipts() {
+    this.phoneRecFilter = { q: '', cat: '' };
+    const search = document.getElementById('mRecSearch');
+    search.addEventListener('input', () => {
+      this.phoneRecFilter.q = search.value;
+      this.renderPhoneReceipts();
+    });
+    document.getElementById('mRecChips').addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-cat]');
+      if (!chip) return;
+      this.phoneRecFilter.cat = chip.dataset.cat;
+      this.renderPhoneReceipts();
+    });
+    document.getElementById('mRecClear').addEventListener('click', () => {
+      search.value = '';
+      this.phoneRecFilter = { q: '', cat: '' };
+      this.renderPhoneReceipts();
+    });
+    document.getElementById('mRecAdd').addEventListener('click', () => this.openAddModal());
+    document.getElementById('mRecEmptyAdd').addEventListener('click', () => this.openAddModal());
+    document.getElementById('mRecList').addEventListener('click', (e) => {
+      const row = e.target.closest('[data-id]');
+      if (!row) return;
+      const r = this.allReceipts.find(x => String(x.id) === row.dataset.id);
+      if (r) this.openReceiptDetail(r);
+    });
+
+    // Detail sheet actions
+    document.getElementById('mDetPhoto').addEventListener('click', () => {
+      const r = this._detailReceipt();
+      if (r) this._openZoom(r);
+    });
+    document.getElementById('mDetEdit').addEventListener('click', () => {
+      const r = this._detailReceipt();
+      if (!r) return;
+      this.closeModal('modalReceiptDetail');
+      this.openEditReceipt(r, 'Edit Receipt');
+    });
+    document.getElementById('mDetRotate').addEventListener('click', async (e) => {
+      const r = this._detailReceipt();
+      if (!r) return;
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      try {
+        const updated = await this.rotateReceipt(r);
+        if (updated) this._fillReceiptDetail(updated);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+    document.getElementById('mDetDelete').addEventListener('click', async () => {
+      const r = this._detailReceipt();
+      if (r && await this.deleteReceiptWithConfirm(r)) this.closeModal('modalReceiptDetail');
+    });
+  }
+
+  _detailReceipt() {
+    return this.allReceipts.find(x => x.id === this.detailReceiptId) || null;
+  }
+
+  openReceiptDetail(r) {
+    this.detailReceiptId = r.id;
+    this._fillReceiptDetail(r);
+    this.openModal('modalReceiptDetail');
+  }
+
+  _fillReceiptDetail(r) {
+    const labels = window.expenseLabels;
+    document.getElementById('mDetImg').src = r.thumbnailDataUrl || r.dataUrl || '';
+    document.getElementById('mDetImg').alt = `Receipt from ${r.merchant || 'unknown merchant'}`;
+    document.getElementById('mDetMerchant').textContent = r.merchant || 'Receipt';
+    document.getElementById('mDetAmount').textContent = this._money(r.amount);
+    let when = 'No date';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(r.date || '')) {
+      const [y, m, d] = r.date.split('-').map(Number);
+      when = new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    const bits = [labels.displayCategory(r.category)];
+    if (r.paymentMethod) bits.push(labels.displayPayment ? labels.displayPayment(r.paymentMethod) : r.paymentMethod);
+    if (r.type === 'pdf') bits.push('PDF');
+    document.getElementById('mDetMeta').innerHTML = `${this._escape(when)}<br>${this._escape(bits.join(' · '))}`;
+    document.getElementById('mDetNotes').textContent = r.notes || '';
+  }
+
+  renderPhoneReceipts() {
+    const list = document.getElementById('mRecList');
+    if (!list) return;
+    const labels = window.expenseLabels;
+    const all = this.currentReceipts || [];
+    const total = all.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    document.getElementById('mRecSub').innerHTML = all.length
+      ? `${all.length} ${all.length === 1 ? 'receipt' : 'receipts'} · <span class="mt-money">${this._money(total)}</span>`
+      : 'Nothing saved yet';
+
+    const { q, cat } = this.phoneRecFilter || { q: '', cat: '' };
+    document.querySelectorAll('#mRecChips [data-cat]').forEach(chip =>
+      chip.setAttribute('aria-pressed', String(chip.dataset.cat === cat)));
+
+    const needle = q.trim().toLowerCase();
+    const shown = all.filter(r => {
+      if (cat && labels.displayCategory(r.category) !== cat) return false;
+      if (!needle) return true;
+      return [r.merchant, r.notes, labels.displayCategory(r.category), (parseFloat(r.amount) || 0).toFixed(2)]
+        .some(v => String(v || '').toLowerCase().includes(needle));
+    });
+
+    document.getElementById('mRecTools').hidden = all.length === 0;
+    document.getElementById('mRecEmpty').hidden = all.length !== 0;
+    document.getElementById('mRecNoMatch').hidden = !(all.length && !shown.length);
+
+    // Group by month, newest first (the list is already newest first)
+    const groups = [];
+    shown.forEach(r => {
+      const key = /^\d{4}-\d{2}/.test(r.date || '') ? r.date.slice(0, 7) : '';
+      let g = groups.find(x => x.key === key);
+      if (!g) groups.push(g = { key, items: [] });
+      g.items.push(r);
+    });
+    list.innerHTML = groups.map(g => {
+      const sum = g.items.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+      const rows = g.items.map(r => {
+        const meta = [this._shortDate(r.date), labels.displayCategory(r.category)];
+        if (r.notes) meta.push(r.notes);
+        else if (r.type === 'pdf') meta.push('PDF');
+        return `<button type="button" class="mt-row" data-id="${this._escape(String(r.id))}" aria-label="${this._escape(`${r.merchant}, ${this._money(r.amount)}, ${this._shortDate(r.date)}`)}">` +
+          `<img class="mt-thumb" src="${r.thumbnailDataUrl || r.dataUrl || ''}" alt="" loading="lazy">` +
+          `<span class="mt-row-t"><b>${this._escape(r.merchant || 'Receipt')}</b><small>${this._escape(meta.join(' · '))}</small></span>` +
+          `<span class="mt-money">${this._money(r.amount)}</span></button>`;
+      }).join('');
+      return `<div class="mt-group-h"><span>${this._escape(g.key ? this._monthName(g.key) : 'No date')}</span><span>${g.items.length} · ${this._money(sum)}</span></div><div class="mt-list">${rows}</div>`;
+    }).join('');
+
+    // Keep an open detail sheet in step with edits made elsewhere (e.g. sync)
+    if (this.detailReceiptId && document.getElementById('modalReceiptDetail').classList.contains('open')) {
+      const r = this._detailReceipt();
+      if (r) this._fillReceiptDetail(r);
+      else this.closeModal('modalReceiptDetail');
+    }
   }
 
   renderLedgerTable() {

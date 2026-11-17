@@ -84,6 +84,36 @@
 
   </section>
 
+  <!-- PHONE: receipt detail sheet (photo, Edit, Rotate, Delete) -->
+  <div id="modalReceiptDetail" class="modal-overlay ph-sheet-overlay">
+    <div class="ph-sheet" role="dialog" aria-modal="true" aria-labelledby="mDetMerchant">
+      <div class="ph-sheet-grab" aria-hidden="true"></div>
+      <div class="ph-detail">
+        <button type="button" class="ph-detail-photo" id="mDetPhoto" aria-label="View receipt full size">
+          <img id="mDetImg" alt="">
+        </button>
+        <div class="ph-detail-text">
+          <h3 id="mDetMerchant">Receipt</h3>
+          <div class="ph-detail-amount" id="mDetAmount">$0.00</div>
+          <div class="ph-detail-meta" id="mDetMeta"></div>
+          <div class="ph-detail-notes" id="mDetNotes"></div>
+        </div>
+      </div>
+      <div class="ph-detail-actions">
+        <button type="button" class="ph-action primary" id="mDetEdit">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><span>Edit</span>
+        </button>
+        <button type="button" class="ph-action" id="mDetRotate">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/></svg><span>Rotate</span>
+        </button>
+        <button type="button" class="ph-action danger" id="mDetDelete">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg><span>Delete</span>
+        </button>
+      </div>
+      <button class="ph-sheet-cancel modal-close" type="button">Close</button>
+    </div>
+  </div>
+
   <!-- PHONE: "Which receipts?" sheet. The shared date range card moves in here. -->
   <div id="modalRange" class="modal-overlay ph-sheet-overlay">
     <div class="ph-sheet" role="dialog" aria-modal="true" aria-labelledby="rangeSheetTitle">
@@ -164,7 +194,51 @@
 
     <!-- TAB 1: RECEIPTS VIEW -->
     <section id="tab-receipts" class="tab-view active">
-      <div class="view-header">
+      <!-- PHONE: compact receipts list (laptop keeps the grid below) -->
+      <div class="mt m-only" id="mReceipts">
+        <div class="mt-top">
+          <div>
+            <h1>Receipts</h1>
+            <div class="mt-sub" id="mRecSub">0 receipts</div>
+          </div>
+          <button type="button" class="mt-fab" id="mRecAdd" aria-label="Add receipt or PDF">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </div>
+        <div id="mRecTools">
+          <div class="mt-px">
+            <label class="mt-search">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+              <input type="search" id="mRecSearch" placeholder="Search merchant or note" aria-label="Search receipts" autocomplete="off">
+            </label>
+          </div>
+          <div class="mt-px">
+            <div class="mt-chips mt-cat-chips" id="mRecChips" role="group" aria-label="Filter by category">
+              <button type="button" class="mt-chip" data-cat="" aria-pressed="true">All</button>
+              <button type="button" class="mt-chip" data-cat="Meals" aria-pressed="false">Meals</button>
+              <button type="button" class="mt-chip" data-cat="Transportation" aria-pressed="false">Transportation</button>
+              <button type="button" class="mt-chip" data-cat="Lodging" aria-pressed="false">Lodging</button>
+              <button type="button" class="mt-chip" data-cat="Office Supplies" aria-pressed="false">Office</button>
+            </div>
+          </div>
+        </div>
+        <div id="mRecList"></div>
+        <div class="mt-empty" id="mRecNoMatch" hidden>
+          <b>No matching receipts</b>
+          <span>Try another search or category.</span>
+          <div class="mt-actions"><button type="button" class="mt-btn" id="mRecClear">Clear filters</button></div>
+        </div>
+        <div class="mt-empty" id="mRecEmpty" hidden>
+          <b>No receipts yet</b>
+          <span>Snap a paper receipt or upload a PDF to get started.</span>
+          <div class="mt-actions">
+            <button type="button" class="mt-btn primary" id="mRecEmptyAdd">Add receipt</button>
+            <button type="button" class="mt-btn js-demo-receipts">Add demo receipts</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="view-header d-only">
         <div class="view-title-group">
           <h2>All Receipts</h2>
           <p>Every receipt you've saved, newest first. To build a report, open the PDF tab and pick a date range.</p>
@@ -177,7 +251,7 @@
         </div>
       </div>
 
-      <div class="report-hero" id="reportHero">
+      <div class="report-hero d-only" id="reportHero">
         <div class="report-hero-copy">
           <span class="report-hero-label">All receipts total</span>
           <span class="report-hero-total" id="heroTotal">$0.00</span>
@@ -189,7 +263,7 @@
       </div>
 
       <!-- Empty State -->
-      <div id="emptyReceipts" class="empty-state" style="display: none;">
+      <div id="emptyReceipts" class="empty-state d-only" style="display: none;">
         <div class="empty-icon">🧾</div>
         <h3>No receipts yet</h3>
         <p>Snap a picture of a paper receipt from your phone, or upload a digital PDF (such as an Uber or airline receipt).</p>
@@ -197,7 +271,7 @@
       </div>
 
       <!-- Receipts Grid -->
-      <div id="receiptsGrid" class="receipts-grid"></div>
+      <div id="receiptsGrid" class="receipts-grid d-only"></div>
     </section>
 
     <!-- TAB 2: SPREADSHEET LEDGER -->

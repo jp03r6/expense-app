@@ -2691,7 +2691,7 @@ html.is-phone #tab-settings {
   padding: 0 0 8px;
 }
 html.is-phone #tab-settings > div:not(.mt) {
-  padding: 24px 16px 0;
+  padding: 24px 24px 0;
 }
 
 /* Bottom bar, matching the home screen */
@@ -3070,4 +3070,148 @@ html.show-home .mobile-nav-bar #navHome svg {
   #rangeSheetSlot .range-custom {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Receipts (phone) */
+.mt-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--ph-line);
+  border-radius: var(--ph-r);
+  background: var(--ph-surface);
+  color: var(--ph-muted);
+  cursor: text;
+}
+.mt-search:focus-within {
+  border-color: var(--ph-primary);
+  box-shadow: 0 0 0 3px var(--ph-primary-wash);
+}
+.mt-search input {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--ph-text);
+  font: inherit;
+  font-size: 1rem; /* 16px keeps iOS from zooming in */
+}
+.mt-search input:focus-visible {
+  outline: 0;
+}
+.mt-cat-chips {
+  margin-top: 12px;
+}
+.mt-thumb {
+  flex: none;
+  width: 44px;
+  height: 56px;
+  border: 1px solid var(--ph-line);
+  border-radius: 8px;
+  object-fit: cover;
+  object-position: top;
+  background: #fff;
+}
+
+/* Receipt detail sheet */
+.ph-detail {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.ph-detail-photo {
+  flex: none;
+  width: 112px;
+  height: 152px;
+  padding: 0;
+  border: 1px solid var(--ph-line);
+  border-radius: var(--ph-r);
+  overflow: hidden;
+  background: #fff;
+  cursor: zoom-in;
+}
+.ph-detail-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+.ph-detail-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ph-detail-text h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ph-text);
+}
+.ph-detail-amount {
+  margin: 4px 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ph-money);
+  font-variant-numeric: tabular-nums;
+}
+.ph-detail-meta {
+  font-size: 0.875rem;
+  color: var(--ph-muted);
+}
+.ph-detail-notes {
+  margin-top: 6px;
+  font-size: 0.875rem;
+  color: var(--ph-text);
+}
+.ph-detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+/* Icon above the label, so all three always fit, even on a 320px screen */
+.ph-action {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 1px solid var(--ph-line);
+  border-radius: var(--ph-r);
+  background: var(--ph-surface);
+  color: var(--ph-text);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ph-action.primary {
+  background: var(--ph-primary);
+  border-color: var(--ph-primary);
+  color: #fff;
+}
+.ph-action.danger {
+  color: #B91C1C;
+}
+[data-theme="dark"] .ph-action.danger {
+  color: #FCA5A5;
+}
+.ph-action:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.ph-action:focus-visible {
+  outline: 3px solid var(--ph-primary);
+  outline-offset: 2px;
 }
