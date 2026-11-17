@@ -53,7 +53,7 @@ Built specifically for the workflow where you:
 
 ### 4. Cross-Device Sync & Portability
 - **Local & Offline-First (IndexedDB)**: Works immediately out of the box with zero cloud setup needed.
-- **Multi-Device Room Pairing**: Use the 6-character room code to link your work iPhone, personal Android, and laptop.
+- **Multi-Device Room Pairing (off by default)**: Turn on Sync in Settings, then use the 6-character room code to link your phone and laptop. Sync goes through a free public relay (broker.hivemq.com) and is not encrypted yet, so nothing connects until you turn it on.
 - **Full Data Backup**: 1-click JSON backup and restore to save or move your expense reports anytime.
 
 ---

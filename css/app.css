@@ -1071,6 +1071,86 @@ button {
   min-width: 0;
 }
 
+/* Sync on/off switch (Settings) */
+.sync-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  min-height: 56px;
+}
+.sync-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sync-toggle-title {
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+.sync-toggle-hint {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+.sync-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 48px;
+  height: 28px;
+  margin: 0;
+  border-radius: 999px;
+  background: #cbd5e1;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.sync-switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+}
+.sync-switch:checked {
+  background: var(--primary);
+}
+.sync-switch:checked::after {
+  transform: translateX(20px);
+}
+.sync-switch:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.sync-warning {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: #fffbeb;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+.sync-warning[hidden],
+#syncPairingArea[hidden] {
+  display: none;
+}
+#syncPairingArea {
+  margin-top: 16px;
+}
+
 /* Date range picker (shared by the PDF and Ledger tabs) */
 #tab-ledger .range-slot .date-range-card {
   margin-bottom: 16px;
@@ -2109,4 +2189,12 @@ button {
   .receipt-card:hover {
     transform: none;
   }
+}
+
+[data-theme="dark"] .sync-warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fcd34d;
+}
+[data-theme="dark"] .sync-switch:not(:checked) {
+  background: #475569;
 }

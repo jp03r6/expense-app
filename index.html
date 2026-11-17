@@ -14,7 +14,7 @@
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   
-  <link rel="stylesheet" href="css/app.css?v=11">
+  <link rel="stylesheet" href="css/app.css?v=12">
 
   <!-- Self-contained Vendor Libraries -->
   <script src="vendor/pdf-lib.min.js"></script>
@@ -22,7 +22,7 @@
   <script src="vendor/xlsx.full.min.js"></script>
   <script src="vendor/qrcode.min.js"></script>
   <script src="vendor/jsqr.min.js"></script>
-  <script src="vendor/mqttws31.min.js"></script>
+  <!-- vendor/mqttws31.min.js (sync) is loaded only when Sync is turned on -->
 </head>
 <body>
 
@@ -302,9 +302,9 @@
         <div style="background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 24px;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
             <div>
-              <h3 style="font-size: 1.25rem;">📱 Real-Time Multi-Device Sync</h3>
+              <h3 style="font-size: 1.25rem;">📱 Multi-Device Sync</h3>
               <p style="color: var(--text-muted); font-size: 0.875rem;">
-                Connect your iOS work phone, Android phone, and Windows laptop to sync receipts automatically.
+                Send receipts between your phone and laptop. Off by default: your receipts stay on this device.
               </p>
             </div>
             <div id="syncLiveStatusBadge" class="sync-badge" style="padding: 6px 12px; font-size: 0.8125rem;">
@@ -313,6 +313,19 @@
             </div>
           </div>
 
+          <!-- Sync on/off switch. Nothing connects to the relay until this is on. -->
+          <label class="sync-toggle-row" for="toggleSync">
+            <span class="sync-toggle-text">
+              <span class="sync-toggle-title">Sync between devices</span>
+              <span id="syncToggleHint" class="sync-toggle-hint">Off. Nothing is sent anywhere.</span>
+            </span>
+            <input type="checkbox" id="toggleSync" class="sync-switch" role="switch">
+          </label>
+          <p id="syncWarning" class="sync-warning" hidden>
+            ⚠️ Sync goes through a free public relay and isn't encrypted yet.
+          </p>
+
+          <div id="syncPairingArea" hidden>
           <!-- Dynamic QR Code Card -->
           <div class="qr-card-container">
             <div id="syncQrCodeBox" class="qr-code-box">
@@ -345,6 +358,7 @@
               <input type="text" id="inputJoinRoom" class="form-input" placeholder="Or enter room code (e.g. EXP-W7K9)" style="flex: 1;">
               <button id="btnJoinRoom" class="btn btn-primary btn-sm">Join Room</button>
             </div>
+          </div>
           </div>
         </div>
 
@@ -510,11 +524,11 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <!-- Application Logic Modules -->
-  <script src="js/store.js?v=11"></script>
-  <script src="js/receipt-manager.js?v=11"></script>
-  <script src="js/pdf-compiler.js?v=11"></script>
-  <script src="js/spreadsheet-helper.js?v=11"></script>
-  <script src="js/firebase-config.js?v=11"></script>
-  <script src="js/app.js?v=11"></script>
+  <script src="js/store.js?v=12"></script>
+  <script src="js/receipt-manager.js?v=12"></script>
+  <script src="js/pdf-compiler.js?v=12"></script>
+  <script src="js/spreadsheet-helper.js?v=12"></script>
+  <script src="js/firebase-config.js?v=12"></script>
+  <script src="js/app.js?v=12"></script>
 </body>
 </html>

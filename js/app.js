@@ -72,6 +72,13 @@ class ExpenseApp {
       this.handleSyncStatusChange(status);
     });
     this.renderQrCode();
+
+    // A pairing link (?room=...) saves the room code, but never turns Sync on
+    // by itself. Point the user at the switch instead.
+    if (new URLSearchParams(window.location.search).has('room') && !window.cloudSyncManager.isEnabled()) {
+      this.switchTab('tab-settings');
+      this.showToast('Room code saved. Turn on Sync to connect.', 'info');
+    }
   }
 
   initTheme() {
@@ -143,6 +150,16 @@ class ExpenseApp {
 
     const displayRoom = document.getElementById('displayRoomCode');
     if (displayRoom) displayRoom.textContent = status.roomCode;
+
+    // Sync switch, warning, and pairing controls follow the on/off state
+    const toggle = document.getElementById('toggleSync');
+    if (toggle) toggle.checked = !!status.enabled;
+    const hint = document.getElementById('syncToggleHint');
+    if (hint) hint.textContent = status.enabled ? 'On. Devices with your room code get your receipts.' : 'Off. Nothing is sent anywhere.';
+    const warning = document.getElementById('syncWarning');
+    if (warning) warning.hidden = !status.enabled;
+    const pairing = document.getElementById('syncPairingArea');
+    if (pairing) pairing.hidden = !status.enabled;
   }
 
   startQrScanner() {
@@ -233,7 +250,7 @@ class ExpenseApp {
 
     window.cloudSyncManager.setRoomCode(roomCode);
     this.renderQrCode();
-    this.showToast(`🎉 Connected to ${roomCode}! Syncing in real-time...`, 'success');
+    this.showToast(`Joined room ${window.cloudSyncManager.syncRoomId}.`, 'success');
   }
 
   _bindEvents() {
@@ -496,6 +513,20 @@ class ExpenseApp {
     }
 
     // Multi-Device Cloud Sync Controls
+    const toggleSync = document.getElementById('toggleSync');
+    if (toggleSync) {
+      toggleSync.addEventListener('change', async () => {
+        const on = toggleSync.checked;
+        await window.cloudSyncManager.setEnabled(on);
+        if (on) {
+          this.renderQrCode();
+          this.showToast('Sync is on. It uses a public relay and is not encrypted yet.', 'info');
+        } else {
+          this.showToast('Sync is off. Receipts stay on this device.', 'info');
+        }
+      });
+    }
+
     document.getElementById('btnCopyPairLink').addEventListener('click', () => {
       const link = window.cloudSyncManager.getPairingLink();
       navigator.clipboard.writeText(link);
