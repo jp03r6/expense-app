@@ -2289,3 +2289,287 @@ button {
 [data-theme="dark"] .sync-switch:not(:checked) {
   background: #475569;
 }
+
+
+/* ==========================================================================
+   Phone home (quick capture). Uses the new design tokens, scoped to
+   .phone-home so the rest of the app is not restyled yet.
+   ========================================================================== */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('../vendor/fonts/plus-jakarta-sans-latin.woff2') format('woff2');
+}
+
+.phone-home {
+  --ph-primary: #1E40AF;
+  --ph-primary-hover: #1E3A8A;
+  --ph-primary-wash: #EFF4FF;
+  --ph-money: #047857;
+  --ph-bg: #F6F7F9;
+  --ph-surface: #FFFFFF;
+  --ph-line: #E3E6EB;
+  --ph-text: #0F172A;
+  --ph-muted: #475569;
+  --ph-s1: 8px;
+  --ph-s2: 16px;
+  --ph-s3: 24px;
+  --ph-r: 12px;
+  display: none;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--ph-bg);
+  color: var(--ph-text);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+html.show-home .phone-home {
+  display: flex;
+}
+/* While home is showing, hide the full app (modals and toasts still work) */
+html.show-home body > :not(#phoneHome):not(.modal-overlay):not(.toast-container):not(script) {
+  display: none !important;
+}
+html.show-home body {
+  padding: 0;
+  background: #F6F7F9;
+}
+
+.phone-home svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+.phone-home button {
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.phone-home button:focus-visible {
+  outline: 3px solid var(--ph-primary);
+  outline-offset: 2px;
+}
+
+.ph-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--ph-s3) var(--ph-s3) var(--ph-s2);
+}
+.ph-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+}
+.ph-brand svg {
+  color: var(--ph-primary);
+}
+.ph-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -10px -10px -10px 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ph-muted);
+}
+.ph-icon-btn:active {
+  background: var(--ph-line);
+}
+
+.ph-month {
+  margin: 0 var(--ph-s3);
+  padding: var(--ph-s3);
+  background: var(--ph-surface);
+  border: 1px solid var(--ph-line);
+  border-radius: 16px;
+}
+.ph-month small {
+  display: block;
+  color: var(--ph-muted);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+.ph-money {
+  color: var(--ph-money);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.ph-month-total {
+  display: block;
+  font-size: 2.441rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.ph-snap {
+  margin: var(--ph-s3);
+  min-height: 220px;
+  border: 0;
+  border-radius: 24px;
+  background: var(--ph-primary);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: background 0.15s;
+}
+.ph-snap:active {
+  background: var(--ph-primary-hover);
+}
+.ph-snap svg {
+  width: 56px;
+  height: 56px;
+  stroke-width: 1.75;
+}
+.ph-snap-title {
+  font-size: 1.563rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.ph-snap-sub {
+  margin-top: -4px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.ph-alt {
+  display: flex;
+  gap: var(--ph-s2);
+  margin: 0 var(--ph-s3);
+}
+.ph-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 var(--ph-s2);
+  border: 1px solid var(--ph-line);
+  border-radius: var(--ph-r);
+  background: var(--ph-surface);
+  color: var(--ph-text);
+  font-size: 1rem;
+  font-weight: 500;
+}
+.ph-btn:active {
+  background: var(--ph-primary-wash);
+}
+
+.ph-recent {
+  margin: var(--ph-s3);
+}
+.ph-recent h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ph-muted);
+}
+.ph-row {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--ph-line);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+.ph-row-text {
+  min-width: 0;
+}
+.ph-row b {
+  display: block;
+  font-weight: 700;
+  font-size: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ph-row small {
+  color: var(--ph-muted);
+  font-size: 0.8125rem;
+}
+.ph-row .ph-money {
+  flex: none;
+  font-size: 1rem;
+}
+.ph-empty {
+  margin: 4px 0 0;
+  color: var(--ph-muted);
+  font-size: 0.9375rem;
+}
+
+.ph-foot {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  min-height: 56px;
+  padding: var(--ph-s2) var(--ph-s3);
+  padding-bottom: calc(var(--ph-s2) + env(safe-area-inset-bottom, 0px));
+  border: 0;
+  border-top: 1px solid var(--ph-line);
+  background: var(--ph-surface);
+  color: var(--ph-muted);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+[data-theme="dark"] .phone-home {
+  --ph-bg: #0F172A;
+  --ph-surface: #1E293B;
+  --ph-line: #334155;
+  --ph-text: #F1F5F9;
+  --ph-muted: #CBD5E1;
+  --ph-money: #34D399;
+  --ph-primary: #2563EB;
+  --ph-primary-hover: #1D4ED8;
+  --ph-primary-wash: #1E3A8A;
+}
+[data-theme="dark"].show-home body {
+  background: #0F172A;
+}
+
+/* Home tab in the bottom bar: only on phones */
+.nav-home-item {
+  display: none;
+}
+html.is-phone .nav-home-item {
+  display: flex;
+}
+html.is-phone .mobile-nav-bar {
+  display: flex;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ph-snap { transition: none; }
+}
+
+html.is-phone .app-container {
+  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+}

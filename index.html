@@ -14,7 +14,15 @@
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   
-  <link rel="stylesheet" href="css/app.css?v=12">
+  <link rel="stylesheet" href="css/app.css?v=13">
+  <script>
+    // Phones (narrow or touch screen) open on the quick-capture home screen.
+    // Decided before the first paint so the full app never flashes first.
+    // Same rule as app.js PHONE_QUERY.
+    if (window.matchMedia && window.matchMedia('(max-width: 768px), (pointer: coarse)').matches) {
+      document.documentElement.classList.add('is-phone', 'show-home');
+    }
+  </script>
 
   <!-- Self-contained Vendor Libraries -->
   <script src="vendor/pdf-lib.min.js"></script>
@@ -25,6 +33,56 @@
   <!-- vendor/mqttws31.min.js (sync) is loaded only when Sync is turned on -->
 </head>
 <body>
+
+  <!-- PHONE HOME (quick capture). Shown on every app open on phones
+       (narrow or touch screen); never on laptops. See app.js phone home. -->
+  <section id="phoneHome" class="phone-home" aria-label="ExpenseSnap home">
+    <div class="ph-top">
+      <div class="ph-brand">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 1 1V2l-1 1-3-2-3 2-3-2-3 2-3-2z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+        <span>ExpenseSnap</span>
+      </div>
+      <button id="phSettings" class="ph-icon-btn" type="button" aria-label="Settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
+
+    <div class="ph-month">
+      <small id="phMonthLabel">This month so far · 0 receipts</small>
+      <span id="phMonthTotal" class="ph-money ph-month-total">$0.00</span>
+    </div>
+
+    <button id="phSnap" class="ph-snap" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span class="ph-snap-title">Snap a receipt</span>
+      <span class="ph-snap-sub">Opens the camera</span>
+    </button>
+    <!-- Camera capture (photo) and PDF picker for the home screen -->
+    <input type="file" id="phCameraInput" accept="image/*" capture="environment" hidden>
+    <input type="file" id="phPdfInput" accept="application/pdf,.pdf" hidden>
+
+    <div class="ph-alt">
+      <button id="phUploadPdf" class="ph-btn" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <span>Upload PDF</span>
+      </button>
+      <button id="phNoReceipt" class="ph-btn" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span>No receipt</span>
+      </button>
+    </div>
+
+    <div class="ph-recent">
+      <h3>Recent</h3>
+      <div id="phRecentList"></div>
+      <p id="phRecentEmpty" class="ph-empty" hidden>No receipts yet. Tap "Snap a receipt" to add your first one.</p>
+    </div>
+
+    <button id="phFullApp" class="ph-foot" type="button">
+      <span>Make the report on your laptop</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+  </section>
 
   <!-- App Header -->
   <header class="app-header">
@@ -385,6 +443,10 @@
 
   <!-- Mobile Bottom Navigation Bar -->
   <nav class="mobile-nav-bar">
+    <button class="mobile-nav-item nav-home-item" id="navHome" type="button">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z"></path></svg>
+      <span>Home</span>
+    </button>
     <button class="mobile-nav-item active" data-tab="tab-receipts">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
       <span>Receipts</span>
@@ -522,11 +584,11 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <!-- Application Logic Modules -->
-  <script src="js/store.js?v=12"></script>
-  <script src="js/receipt-manager.js?v=12"></script>
-  <script src="js/pdf-compiler.js?v=12"></script>
-  <script src="js/spreadsheet-helper.js?v=12"></script>
-  <script src="js/firebase-config.js?v=12"></script>
-  <script src="js/app.js?v=12"></script>
+  <script src="js/store.js?v=13"></script>
+  <script src="js/receipt-manager.js?v=13"></script>
+  <script src="js/pdf-compiler.js?v=13"></script>
+  <script src="js/spreadsheet-helper.js?v=13"></script>
+  <script src="js/firebase-config.js?v=13"></script>
+  <script src="js/app.js?v=13"></script>
 </body>
 </html>
