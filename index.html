@@ -14,7 +14,7 @@
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   
-  <link rel="stylesheet" href="css/app.css?v=13">
+  <link rel="stylesheet" href="css/app.css?v=14">
   <script>
     // Phones (narrow or touch screen) open on the quick-capture home screen.
     // Decided before the first paint so the full app never flashes first.
@@ -59,8 +59,11 @@
     </button>
     <!-- Camera capture (photo) and PDF picker for the home screen -->
     <input type="file" id="phCameraInput" accept="image/*" capture="environment" hidden>
-    <!-- No capture attribute: phones offer the photo library and files -->
-    <input type="file" id="phUploadInput" accept="image/*,application/pdf" hidden>
+    <!-- Upload choices (see #modalUploadChoice). Separate pickers because
+         Android Chrome shows a Camera/Files chooser for image/*+pdf, but the
+         photo gallery picker for image/* alone (no capture attribute). -->
+    <input type="file" id="phGalleryInput" accept="image/*" hidden>
+    <input type="file" id="phPdfInput" accept="application/pdf" hidden>
 
     <div class="ph-alt">
       <button id="phUpload" class="ph-btn" type="button">
@@ -79,11 +82,23 @@
       <p id="phRecentEmpty" class="ph-empty" hidden>No receipts yet. Tap "Snap a receipt" to add your first one.</p>
     </div>
 
-    <button id="phFullApp" class="ph-foot" type="button">
-      <span>Make the report on your laptop</span>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
-    </button>
   </section>
+
+  <!-- PHONE HOME: "Upload photo or PDF" choice sheet -->
+  <div id="modalUploadChoice" class="modal-overlay ph-sheet-overlay">
+    <div class="ph-sheet" role="dialog" aria-modal="true" aria-labelledby="phSheetTitle">
+      <h3 id="phSheetTitle" class="ph-sheet-title">Upload a receipt</h3>
+      <button id="phPickGallery" class="ph-sheet-option" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        <span class="ph-sheet-text"><b>Photo gallery</b><small>Pick a photo you already took</small></span>
+      </button>
+      <button id="phPickPdf" class="ph-sheet-option" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>
+        <span class="ph-sheet-text"><b>PDF file</b><small>From your Files or Downloads</small></span>
+      </button>
+      <button class="ph-sheet-cancel modal-close" type="button">Cancel</button>
+    </div>
+  </div>
 
   <!-- App Header -->
   <header class="app-header">
@@ -585,11 +600,11 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <!-- Application Logic Modules -->
-  <script src="js/store.js?v=13"></script>
-  <script src="js/receipt-manager.js?v=13"></script>
-  <script src="js/pdf-compiler.js?v=13"></script>
-  <script src="js/spreadsheet-helper.js?v=13"></script>
-  <script src="js/firebase-config.js?v=13"></script>
-  <script src="js/app.js?v=13"></script>
+  <script src="js/store.js?v=14"></script>
+  <script src="js/receipt-manager.js?v=14"></script>
+  <script src="js/pdf-compiler.js?v=14"></script>
+  <script src="js/spreadsheet-helper.js?v=14"></script>
+  <script src="js/firebase-config.js?v=14"></script>
+  <script src="js/app.js?v=14"></script>
 </body>
 </html>

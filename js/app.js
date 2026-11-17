@@ -281,7 +281,9 @@ class ExpenseApp {
     document.querySelectorAll('[data-tab]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const tabId = btn.getAttribute('data-tab');
-        this.switchTab(tabId);
+        // From the phone home screen, a tab opens the full app on that tab
+        if (document.documentElement.classList.contains('show-home')) this.showFullApp(tabId);
+        else this.switchTab(tabId);
       });
     });
 
@@ -761,11 +763,22 @@ class ExpenseApp {
     if (this.isPhone()) this.showPhoneHome();
 
     const cam = document.getElementById('phCameraInput');
-    const upload = document.getElementById('phUploadInput');
+    const gallery = document.getElementById('phGalleryInput');
+    const pdf = document.getElementById('phPdfInput');
     document.getElementById('phSnap').addEventListener('click', () => cam.click());
-    document.getElementById('phUpload').addEventListener('click', () => upload.click());
+    // "Upload photo or PDF" asks which: the photo gallery or a PDF from Files.
+    // Each picker is opened right inside the tap so the browser allows it.
+    document.getElementById('phUpload').addEventListener('click', () => this.openModal('modalUploadChoice'));
+    document.getElementById('phPickGallery').addEventListener('click', () => {
+      gallery.click();
+      this.closeModal('modalUploadChoice');
+    });
+    document.getElementById('phPickPdf').addEventListener('click', () => {
+      pdf.click();
+      this.closeModal('modalUploadChoice');
+    });
     // Photos and PDFs both go through the same add form (PDFs use the PDF path)
-    [cam, upload].forEach(input => {
+    [cam, gallery, pdf].forEach(input => {
       input.addEventListener('change', async () => {
         const file = input.files && input.files[0];
         input.value = '';
@@ -776,18 +789,23 @@ class ExpenseApp {
     });
     document.getElementById('phNoReceipt').addEventListener('click', () => this.openNoReceiptForm());
     document.getElementById('phSettings').addEventListener('click', () => this.showFullApp('tab-settings'));
-    document.getElementById('phFullApp').addEventListener('click', () => this.showFullApp('tab-receipts'));
     document.getElementById('navHome').addEventListener('click', () => this.showPhoneHome());
   }
 
   showPhoneHome() {
     document.documentElement.classList.add('show-home');
+    // Bottom bar: Home is the active tab while home is showing
+    document.querySelectorAll('.mobile-nav-bar .mobile-nav-item').forEach(btn => {
+      btn.classList.toggle('active', btn.id === 'navHome');
+    });
     this.renderPhoneHome();
     window.scrollTo(0, 0);
   }
 
   showFullApp(tabId = 'tab-receipts') {
     document.documentElement.classList.remove('show-home');
+    const home = document.getElementById('navHome');
+    if (home) home.classList.remove('active');
     this.switchTab(tabId);
     window.scrollTo(0, 0);
   }

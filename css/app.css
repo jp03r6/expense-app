@@ -2303,7 +2303,8 @@ button {
   src: url('../vendor/fonts/plus-jakarta-sans-latin.woff2') format('woff2');
 }
 
-.phone-home {
+.phone-home,
+.ph-sheet {
   --ph-primary: #1E40AF;
   --ph-primary-hover: #1E3A8A;
   --ph-primary-wash: #EFF4FF;
@@ -2317,10 +2318,14 @@ button {
   --ph-s2: 16px;
   --ph-s3: 24px;
   --ph-r: 12px;
+}
+.phone-home {
   display: none;
   flex-direction: column;
   min-height: 100vh;
   min-height: 100dvh;
+  /* room for the bottom menu bar */
+  padding-bottom: calc(var(--nav-height) + 16px + env(safe-area-inset-bottom, 0px));
   background: var(--ph-bg);
   color: var(--ph-text);
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -2331,7 +2336,7 @@ html.show-home .phone-home {
   display: flex;
 }
 /* While home is showing, hide the full app (modals and toasts still work) */
-html.show-home body > :not(#phoneHome):not(.modal-overlay):not(.toast-container):not(script) {
+html.show-home body > :not(#phoneHome):not(.mobile-nav-bar):not(.modal-overlay):not(.toast-container):not(script) {
   display: none !important;
 }
 html.show-home body {
@@ -2534,25 +2539,9 @@ html.show-home body {
   font-size: 0.9375rem;
 }
 
-.ph-foot {
-  margin-top: auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  min-height: 56px;
-  padding: var(--ph-s2) var(--ph-s3);
-  padding-bottom: calc(var(--ph-s2) + env(safe-area-inset-bottom, 0px));
-  border: 0;
-  border-top: 1px solid var(--ph-line);
-  background: var(--ph-surface);
-  color: var(--ph-muted);
-  font-size: 1rem;
-  font-weight: 600;
-  text-align: left;
-}
 
-[data-theme="dark"] .phone-home {
+[data-theme="dark"] .phone-home,
+[data-theme="dark"] .ph-sheet {
   --ph-bg: #0F172A;
   --ph-surface: #1E293B;
   --ph-line: #334155;
@@ -2584,4 +2573,103 @@ html.is-phone .mobile-nav-bar {
 
 html.is-phone .app-container {
   padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
+
+/* Upload choice sheet (phone home) */
+.ph-sheet-overlay {
+  align-items: flex-end;
+  padding: 0;
+}
+.ph-sheet {
+  width: 100%;
+  max-width: 520px;
+  background: var(--ph-surface);
+  color: var(--ph-text);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  border-radius: 20px 20px 0 0;
+  padding: var(--ph-s3) var(--ph-s3) calc(var(--ph-s2) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--ph-s1);
+  transform: translateY(24px);
+  transition: transform 0.2s ease;
+}
+.ph-sheet-overlay.open .ph-sheet {
+  transform: none;
+}
+.ph-sheet-title {
+  margin: 0 0 var(--ph-s1);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+.ph-sheet-option {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--ph-s2);
+  width: 100%;
+  min-height: 64px;
+  padding: 12px var(--ph-s2);
+  border: 1px solid var(--ph-line);
+  border-radius: var(--ph-r);
+  background: var(--ph-surface);
+  color: var(--ph-text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ph-sheet-option:active {
+  background: var(--ph-primary-wash);
+}
+.ph-sheet-option svg {
+  width: 24px;
+  height: 24px;
+  stroke: var(--ph-primary);
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+.ph-sheet-text b {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.ph-sheet-text small {
+  color: var(--ph-muted);
+  font-size: 0.8125rem;
+}
+.ph-sheet-cancel {
+  margin-top: var(--ph-s1);
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--ph-r);
+  background: transparent;
+  color: var(--ph-muted);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ph-sheet button:focus-visible {
+  outline: 3px solid var(--ph-primary);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ph-sheet { transition: none; transform: none; }
+}
+
+/* On the phone home screen the Home tab is the active one, even before the
+   app's script has run (index.html sets show-home before the first paint). */
+html.show-home .mobile-nav-bar .mobile-nav-item.active:not(#navHome) {
+  color: var(--text-muted);
+  background: transparent;
+  box-shadow: none;
+}
+html.show-home #navHome {
+  color: var(--color-on-primary);
+  background: var(--primary);
+  box-shadow: 0 2px 8px rgb(79 70 229 / 0.35);
 }
