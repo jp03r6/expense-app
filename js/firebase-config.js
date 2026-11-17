@@ -1,12 +1,26 @@
 /**
- * ExpenseSnap - Real-time Multi-Device Cloud Sync & QR Pairing
- * Powered by MQTT over WebSocket (WSS) - Free, Zero-Config, Instant Device-to-Device Linking
+ * ExpenseSnap - Multi-Device Sync & QR Pairing
+ *
+ * Sync sends receipts between devices through a free PUBLIC relay
+ * (broker.hivemq.com, using MQTT over a secure WebSocket). Messages are NOT
+ * encrypted end-to-end, so anyone who knows or guesses the room code could
+ * read them. Because of that, Sync is OFF by default:
+ * - Nothing connects to the relay, and the MQTT library is not even loaded,
+ *   until the user turns Sync on in Settings.
+ * - The on/off choice is saved in localStorage ('expensesnap_sync_enabled').
+ *   Older versions never saved this key, so upgrading always starts with
+ *   Sync off. The saved room code is kept so it can be turned back on.
  */
+
+const SYNC_ENABLED_KEY = 'expensesnap_sync_enabled';
+const MQTT_SCRIPT_SRC = 'vendor/mqttws31.min.js';
 
 class CloudSyncManager {
   constructor() {
-    this.status = 'local'; // 'local', 'connecting', 'online', 'synced', 'error'
+    this.status = 'off'; // 'off', 'connecting', 'online', 'offline'
     this.syncRoomId = null;
+    this.enabled = localStorage.getItem(SYNC_ENABLED_KEY) === '1';
+    this.mqttLoadPromise = null;
     
     // Persistent device ID per browser so refreshes don't look like new devices
     let savedDevId = localStorage.getItem('expensesnap_device_id');
@@ -42,10 +56,68 @@ class CloudSyncManager {
       }
     }
 
-    // 2. Connect to real-time broker
+    // 2. Connect only if the user has turned Sync on
+    if (this.enabled) this._start();
+
+    // 3. Notify peers when closing the window
+    window.addEventListener('beforeunload', () => {
+      if (this.isConnected) {
+        this.publish('presence', { type: 'LEAVE', deviceId: this.deviceId });
+      }
+    });
+  }
+
+  isEnabled() {
+    return this.enabled;
+  }
+
+  // Turn Sync on or off. The choice is remembered on this device.
+  async setEnabled(on) {
+    on = !!on;
+    if (on === this.enabled) return;
+    this.enabled = on;
+    localStorage.setItem(SYNC_ENABLED_KEY, on ? '1' : '0');
+    if (on) {
+      await this._start();
+    } else {
+      this._stop();
+    }
+  }
+
+  // Load the MQTT library only when Sync is turned on.
+  _loadMqttLibrary() {
+    if (window.Paho && window.Paho.MQTT) return Promise.resolve();
+    if (!this.mqttLoadPromise) {
+      this.mqttLoadPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = MQTT_SCRIPT_SRC;
+        script.onload = () => resolve();
+        script.onerror = () => {
+          this.mqttLoadPromise = null;
+          reject(new Error('Could not load the sync library'));
+        };
+        document.head.appendChild(script);
+      });
+    }
+    return this.mqttLoadPromise;
+  }
+
+  async _start() {
+    this.status = 'connecting';
+    this.notifyStatus();
+    try {
+      await this._loadMqttLibrary();
+    } catch (err) {
+      console.warn(err.message);
+      this.status = 'offline';
+      this.notifyStatus();
+      return;
+    }
+    if (!this.enabled) return; // turned off while the library was loading
+
     this.connect();
 
-    // 3. Periodic heartbeat to tell peers we are alive
+    // Periodic heartbeat to tell peers we are alive
     clearInterval(this.heartbeatTimer);
     this.heartbeatTimer = setInterval(() => {
       if (this.isConnected) {
@@ -53,18 +125,38 @@ class CloudSyncManager {
       }
     }, 8000);
 
-    // 4. Periodic cleanup to remove peers that haven't pinged in 18 seconds
+    // Periodic cleanup to remove peers that haven't pinged in 18 seconds
     clearInterval(this.cleanupTimer);
     this.cleanupTimer = setInterval(() => {
       this.cleanStalePeers();
     }, 4000);
+  }
 
-    // 5. Notify peers when closing the window
-    window.addEventListener('beforeunload', () => {
+  _stop() {
+    clearTimeout(this.reconnectTimer);
+    clearInterval(this.heartbeatTimer);
+    clearInterval(this.cleanupTimer);
+    this.reconnectTimer = this.heartbeatTimer = this.cleanupTimer = null;
+    const client = this.mqttClient;
+    this.mqttClient = null;
+    if (client) {
       if (this.isConnected) {
-        this.publish('presence', { type: 'LEAVE', deviceId: this.deviceId });
+        try {
+          const msg = new window.Paho.MQTT.Message(JSON.stringify({
+            type: 'LEAVE', deviceId: this.deviceId, senderId: this.deviceId, roomId: this.syncRoomId
+          }));
+          msg.destinationName = `expensesnap/app_v2/${this.syncRoomId}/presence`;
+          client.send(msg);
+        } catch (e) {}
       }
-    });
+      client.onConnectionLost = () => {};
+      client.onMessageArrived = () => {};
+      try { client.disconnect(); } catch (e) {}
+    }
+    this.isConnected = false;
+    this.peerHeartbeats.clear();
+    this.status = 'off';
+    this.notifyStatus();
   }
 
   generateRoomCode() {
@@ -93,17 +185,25 @@ class CloudSyncManager {
     localStorage.setItem('expensesnap_room_id', clean);
     this.peerHeartbeats.clear();
 
-    if (this.mqttClient && this.isConnected) {
-      try { this.mqttClient.disconnect(); } catch (e) {}
+    if (this.enabled) {
+      if (this.mqttClient) {
+        const old = this.mqttClient;
+        this.mqttClient = null;
+        old.onConnectionLost = () => {};
+        try { old.disconnect(); } catch (e) {}
+      }
+      this.isConnected = false;
+      clearTimeout(this.reconnectTimer);
+      this.connect();
     }
-    this.connect();
     this.notifyStatus();
   }
 
   connect() {
+    if (!this.enabled) return; // never touch the relay while Sync is off
     if (!window.Paho || !window.Paho.MQTT) {
-      console.warn('Paho MQTT library not loaded; falling back to local mode.');
-      this.status = 'local';
+      console.warn('Paho MQTT library not loaded; sync cannot connect.');
+      this.status = 'offline';
       this.notifyStatus();
       return;
     }
@@ -117,27 +217,34 @@ class CloudSyncManager {
     this.notifyStatus();
 
     try {
-      this.mqttClient = new window.Paho.MQTT.Client(host, port, path, clientId);
+      const client = new window.Paho.MQTT.Client(host, port, path, clientId);
+      this.mqttClient = client;
 
-      this.mqttClient.onConnectionLost = (responseObject) => {
+      client.onConnectionLost = (responseObject) => {
+        if (this.mqttClient !== client) return;
         this.isConnected = false;
-        this.status = 'local';
+        this.status = 'offline';
         this.peerHeartbeats.clear();
         this.notifyStatus();
         clearTimeout(this.reconnectTimer);
         this.reconnectTimer = setTimeout(() => this.connect(), 4000);
       };
 
-      this.mqttClient.onMessageArrived = (message) => {
+      client.onMessageArrived = (message) => {
+        if (this.mqttClient !== client) return;
         this._handleIncomingMessage(message);
       };
 
-      this.mqttClient.connect({
+      client.connect({
         useSSL: true,
         timeout: 8,
         keepAliveInterval: 30,
         cleanSession: true,
         onSuccess: () => {
+          if (this.mqttClient !== client) {
+            try { client.disconnect(); } catch (e) {}
+            return;
+          }
           this.isConnected = true;
           this.status = 'online';
           
@@ -151,9 +258,10 @@ class CloudSyncManager {
           this.notifyStatus();
         },
         onFailure: (err) => {
+          if (this.mqttClient !== client) return;
           console.warn('MQTT Connection failed:', err);
           this.isConnected = false;
-          this.status = 'local';
+          this.status = 'offline';
           this.notifyStatus();
           clearTimeout(this.reconnectTimer);
           this.reconnectTimer = setTimeout(() => this.connect(), 8000);
@@ -161,7 +269,7 @@ class CloudSyncManager {
       });
     } catch (err) {
       console.error('MQTT setup error:', err);
-      this.status = 'local';
+      this.status = 'offline';
       this.notifyStatus();
     }
   }
@@ -276,10 +384,12 @@ class CloudSyncManager {
   getStatus() {
     this.cleanStalePeers();
     const peerCount = this.peerHeartbeats.size;
-    let label = 'Local Mode';
+    let label = 'Local Mode'; // Sync is off: nothing leaves this device
     let isLive = false;
 
-    if (this.isConnected) {
+    if (!this.enabled) {
+      label = 'Local Mode';
+    } else if (this.isConnected) {
       if (peerCount === 1) {
         label = 'Synced (2 devices)';
         isLive = true;
@@ -287,15 +397,18 @@ class CloudSyncManager {
         label = `Synced (${peerCount + 1} devices)`;
         isLive = true;
       } else {
-        label = 'Online (Waiting for phone)';
+        label = 'Waiting for other device';
         isLive = true;
       }
     } else if (this.status === 'connecting') {
       label = 'Connecting...';
+    } else {
+      label = 'Sync offline';
     }
 
     return {
       status: this.status,
+      enabled: this.enabled,
       roomCode: this.syncRoomId,
       pairingLink: this.getPairingLink(),
       peersCount: peerCount,

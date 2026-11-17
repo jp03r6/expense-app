@@ -71,7 +71,15 @@ class ExpenseApp {
     window.cloudSyncManager.onStatusChange((status) => {
       this.handleSyncStatusChange(status);
     });
+    this.setupSyncDeviceLayout();
     this.renderQrCode();
+
+    // A pairing link (?room=...) saves the room code, but never turns Sync on
+    // by itself. Point the user at the switch instead.
+    if (new URLSearchParams(window.location.search).has('room') && !window.cloudSyncManager.isEnabled()) {
+      this.switchTab('tab-settings');
+      this.showToast('Room code saved. Turn on Sync to connect.', 'info');
+    }
   }
 
   initTheme() {
@@ -100,49 +108,70 @@ class ExpenseApp {
   }
 
   renderQrCode() {
-    const box = document.getElementById('syncQrCodeBox');
-    if (!box) return;
     const link = window.cloudSyncManager.getPairingLink();
-    box.innerHTML = '';
+    // The laptop layout shows a big QR code; the phone keeps a smaller one
+    // under "Other ways to connect".
+    document.querySelectorAll('.js-sync-qr').forEach(box => {
+      const size = box.classList.contains('qr-code-large') ? 240 : 160;
+      box.innerHTML = '';
+      if (window.QRCode) {
+        new window.QRCode(box, {
+          text: link,
+          width: size,
+          height: size,
+          colorDark: '#0f172a',
+          colorLight: '#ffffff',
+          correctLevel: window.QRCode.CorrectLevel.M
+        });
+      } else {
+        const a = document.createElement('a');
+        a.href = link;
+        a.textContent = link;
+        a.style.cssText = 'word-break: break-all; font-size: 0.8rem; color: var(--primary);';
+        box.appendChild(a);
+      }
+    });
 
-    if (window.QRCode) {
-      new window.QRCode(box, {
-        text: link,
-        width: 180,
-        height: 180,
-        colorDark: '#0f172a',
-        colorLight: '#ffffff',
-        correctLevel: window.QRCode.CorrectLevel.M
-      });
-    } else {
-      box.innerHTML = `<a href="${link}" target="_blank" style="word-break: break-all; font-size: 0.8rem; color: var(--primary);">${link}</a>`;
-    }
+    document.querySelectorAll('.js-room-code').forEach(el => {
+      el.textContent = window.cloudSyncManager.syncRoomId;
+    });
+  }
 
-    const displayRoom = document.getElementById('displayRoomCode');
-    if (displayRoom) displayRoom.textContent = window.cloudSyncManager.syncRoomId;
+  // Phone (narrow or touch screen) leads with scanning; laptop leads with the QR code.
+  setupSyncDeviceLayout() {
+    const area = document.getElementById('syncPairingArea');
+    if (!area || !window.matchMedia) return;
+    const mq = window.matchMedia('(max-width: 768px), (pointer: coarse)');
+    const apply = () => { area.dataset.syncDevice = mq.matches ? 'phone' : 'laptop'; };
+    apply();
+    if (mq.addEventListener) mq.addEventListener('change', apply);
   }
 
   handleSyncStatusChange(status) {
     const headerSyncText = document.getElementById('syncText');
     const headerSyncBadge = document.getElementById('syncBadge');
-    const liveBadge = document.getElementById('syncLiveStatusBadge');
-    const liveText = document.getElementById('syncLiveStatusText');
 
     if (headerSyncText) headerSyncText.textContent = status.label;
-    if (liveText) liveText.textContent = status.label;
 
     const isSynced = status.peersCount > 0;
     const isLive = status.isLive;
 
-    [headerSyncBadge, liveBadge].forEach(b => {
+    [headerSyncBadge].forEach(b => {
       if (!b) return;
       b.classList.toggle('synced', isSynced);
       b.classList.toggle('online', isLive && !isSynced);
       b.classList.toggle('syncing', status.status === 'connecting');
     });
 
-    const displayRoom = document.getElementById('displayRoomCode');
-    if (displayRoom) displayRoom.textContent = status.roomCode;
+    document.querySelectorAll('.js-room-code').forEach(el => { el.textContent = status.roomCode; });
+
+    // Sync switch, warning, and pairing controls follow the on/off state
+    const toggle = document.getElementById('toggleSync');
+    if (toggle) toggle.checked = !!status.enabled;
+    const hint = document.getElementById('syncToggleHint');
+    if (hint) hint.textContent = status.enabled ? status.label : 'Off. Nothing is sent anywhere.';
+    const pairing = document.getElementById('syncPairingArea');
+    if (pairing) pairing.hidden = !status.enabled;
   }
 
   startQrScanner() {
@@ -233,7 +262,7 @@ class ExpenseApp {
 
     window.cloudSyncManager.setRoomCode(roomCode);
     this.renderQrCode();
-    this.showToast(`🎉 Connected to ${roomCode}! Syncing in real-time...`, 'success');
+    this.showToast(`Joined room ${window.cloudSyncManager.syncRoomId}.`, 'success');
   }
 
   _bindEvents() {
@@ -482,10 +511,10 @@ class ExpenseApp {
     }
 
     // In-App QR Scanner Trigger & Close
-    const btnOpenQr = document.getElementById('btnOpenQrScanner');
-    if (btnOpenQr) {
-      btnOpenQr.addEventListener('click', () => this.startQrScanner());
-    }
+    ['btnOpenQrScanner', 'btnScanLaptopQr'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.addEventListener('click', () => this.startQrScanner());
+    });
     const btnCloseQr = document.getElementById('btnCloseQrScanner');
     if (btnCloseQr) {
       btnCloseQr.addEventListener('click', () => this.stopQrScanner());
@@ -496,6 +525,20 @@ class ExpenseApp {
     }
 
     // Multi-Device Cloud Sync Controls
+    const toggleSync = document.getElementById('toggleSync');
+    if (toggleSync) {
+      toggleSync.addEventListener('change', async () => {
+        const on = toggleSync.checked;
+        await window.cloudSyncManager.setEnabled(on);
+        if (on) {
+          this.renderQrCode();
+          this.showToast('Sync is on. It uses a public relay and is not encrypted yet.', 'info');
+        } else {
+          this.showToast('Sync is off. Receipts stay on this device.', 'info');
+        }
+      });
+    }
+
     document.getElementById('btnCopyPairLink').addEventListener('click', () => {
       const link = window.cloudSyncManager.getPairingLink();
       navigator.clipboard.writeText(link);

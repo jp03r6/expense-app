@@ -9,8 +9,8 @@
 // - When a new version of this file installs, it takes over right away,
 //   deletes the old saved copies, and reloads any open ExpenseSnap tabs once
 //   so old code never runs against the new page.
-const APP_VERSION = '11';
-const CACHE_NAME = 'expensesnap-v11';
+const APP_VERSION = '12';
+const CACHE_NAME = 'expensesnap-v12';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -29,7 +29,7 @@ const ASSETS_TO_CACHE = [
   './vendor/xlsx.full.min.js',
   './vendor/qrcode.min.js',
   './vendor/jsqr.min.js',
-  './vendor/mqttws31.min.js'
+  './vendor/mqttws31.min.js' // saved for offline use; only loaded when Sync is on
 ];
 
 self.addEventListener('install', (event) => {
