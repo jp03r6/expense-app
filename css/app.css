@@ -3456,9 +3456,15 @@ html.is-phone #mPdfPreviewSlot .pdf-canvas-container {
   margin-top: 8px;
 }
 .mt-range-line {
-  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 12px;
+  margin-top: 4px;
   font-size: 0.875rem;
   color: var(--ph-muted);
+}
+.mt-range-text {
   overflow-wrap: anywhere;
 }
 .mt-link {

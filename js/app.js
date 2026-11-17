@@ -658,6 +658,7 @@ class ExpenseApp {
       return;
     }
     modal.classList.remove('open');
+    if (modal.id === 'modalRange') this._onRangeSheetClosed();
     if (modal.id === 'modalAddReceipt') {
       this.editingReceiptId = null;
       this.stagedReceiptData = null;
@@ -819,6 +820,10 @@ class ExpenseApp {
     // Range chip rows (Ledger and PDF): the first chip opens the range sheet,
     // the month chips are one-tap shortcuts.
     document.addEventListener('click', (e) => {
+      if (e.target.closest('.js-range-chips .js-change-dates')) {
+        this.openCustomRange();
+        return;
+      }
       const chip = e.target.closest('.js-range-chips [data-preset], .js-range-chips [data-month]');
       if (!chip) return;
       // Run the laptop card's own buttons, so the phone filters exactly the same way
@@ -826,15 +831,43 @@ class ExpenseApp {
       if (chip.dataset.preset) {
         const btn = card.querySelector(`[data-preset="${chip.dataset.preset}"]`);
         if (btn) btn.click();
-        // Custom needs From/To dates, which live in the range sheet
-        if (chip.dataset.preset === 'custom') this.openRangeSheet();
       } else if (chip.dataset.month) {
         const btn = card.querySelector(`[data-month="${chip.dataset.month}"]`);
         if (btn) btn.click();
         else { this.dateRange = { preset: 'month', month: chip.dataset.month }; this._onRangeChanged(); }
       }
     });
+    // Editing From/To in the sheet counts as applying a custom range
+    ['rangeFrom', 'rangeTo'].forEach(id => document.getElementById(id).addEventListener('change', () => {
+      if (this._customSheet) this._customSheet.edited = true;
+    }));
     this.applyPhoneLayout();
+  }
+
+  // "Change dates": open the From/To sheet starting from the range shown now.
+  // If the sheet is closed without changing the dates, the previous choice
+  // (preset or month) comes back, so nothing changes by just looking.
+  openCustomRange() {
+    const prev = { ...this.dateRange };
+    if (prev.preset !== 'custom') {
+      const r = this._computeRange();
+      const today = this._localISO(new Date());
+      document.getElementById('rangeFrom').value = r.from || today;
+      document.getElementById('rangeTo').value = r.to || today;
+    }
+    this._customSheet = { prev, edited: false };
+    const btn = document.querySelector('#dateRangeCard [data-preset="custom"]');
+    if (btn) btn.click();
+    this.openRangeSheet();
+  }
+
+  _onRangeSheetClosed() {
+    const sheet = this._customSheet;
+    this._customSheet = null;
+    if (sheet && !sheet.edited && sheet.prev.preset !== 'custom' && this.dateRange.preset === 'custom') {
+      this.dateRange = sheet.prev;
+      this._onRangeChanged();
+    }
   }
 
   // Moves shared pieces between the laptop and phone layouts when the
@@ -886,27 +919,24 @@ class ExpenseApp {
       }
     });
     const { preset, month } = this.dateRange;
-    const presets = [['this_month', 'This month'], ['last_month', 'Last month'], ['last_90', 'Last 90 days'], ['custom', 'Custom']];
-    const presetHtml = presets.map(([key, label]) => {
-      const on = preset === key;
-      const count = on ? `<span class="n">${n}</span>` : '';
-      const icon = key === 'custom' ? '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>' : '';
-      const aria = key === 'custom' ? ' aria-haspopup="dialog"' : '';
-      return `<button type="button" class="mt-chip" data-preset="${key}" aria-pressed="${on}"${aria}>${icon}<span>${label}</span>${count}</button>`;
-    }).join('');
+    // Custom has no chip: the range line's "Change dates" link sets it, and
+    // then no preset chip is highlighted.
+    const presets = [['this_month', 'This month'], ['last_month', 'Last month'], ['last_90', 'Last 90 days']];
+    const presetHtml = presets.map(([key, label]) =>
+      `<button type="button" class="mt-chip" data-preset="${key}" aria-pressed="${preset === key}"><span>${label}</span></button>`).join('');
     const months = [...counts.keys()].sort().reverse().slice(0, 3);
     const monthHtml = months.map(ym => {
       const on = preset === 'month' && month === ym;
       return `<button type="button" class="mt-chip" data-month="${ym}" aria-pressed="${on}"><span>${this._escape(this._monthName(ym, 'short'))}</span><span class="n">${counts.get(ym)}</span></button>`;
     }).join('');
-    const customLine = preset === 'custom'
-      ? `<div class="mt-range-line">${this._escape(range.label)} · <button type="button" class="mt-link" data-preset="custom">Change dates</button></div>`
-      : '';
+    // One line, always shown: the exact dates, how many receipts, and Change dates
+    const dates = range.from && range.to ? this._rangeLabel(range.from, range.to) : range.label;
+    const rangeLine = `<div class="mt-range-line"><span class="mt-range-text"><span class="js-range-dates">${this._escape(dates)}</span> · <span class="js-range-count">${n} ${n === 1 ? 'receipt' : 'receipts'}</span></span><button type="button" class="mt-link js-change-dates" aria-haspopup="dialog">Change dates</button></div>`;
     rows.forEach(row => {
       row.innerHTML =
         `<div class="mt-chips" role="group" aria-label="Date range">${presetHtml}</div>` +
         (monthHtml ? `<div class="mt-chips mt-chips-months" role="group" aria-label="Months with receipts">${monthHtml}</div>` : '') +
-        customLine;
+        rangeLine;
     });
   }
 
