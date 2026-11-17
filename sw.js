@@ -9,8 +9,8 @@
 // - When a new version of this file installs, it takes over right away,
 //   deletes the old saved copies, and reloads any open ExpenseSnap tabs once
 //   so old code never runs against the new page.
-const APP_VERSION = '17';
-const CACHE_NAME = 'expensesnap-v17';
+const APP_VERSION = '18';
+const CACHE_NAME = 'expensesnap-v18';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

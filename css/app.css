@@ -2690,9 +2690,6 @@ html.is-phone .app-container {
 html.is-phone #tab-settings {
   padding: 0 0 8px;
 }
-html.is-phone #tab-settings > div:not(.mt) {
-  padding: 24px 24px 0;
-}
 
 /* Bottom bar, matching the home screen */
 html.is-phone .mobile-nav-bar {
@@ -2978,35 +2975,6 @@ html.show-home .mobile-nav-bar #navHome svg {
   background: var(--ph-primary);
   border-color: var(--ph-primary);
   color: #fff;
-}
-
-/* Settings (phone) */
-.mt-setting-list {
-  padding: 0 16px;
-}
-.mt-setting {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 64px;
-  padding: 10px 0;
-  cursor: pointer;
-}
-.mt-setting + .mt-setting {
-  border-top: 1px solid var(--ph-line);
-}
-.mt-setting-text {
-  min-width: 0;
-}
-.mt-setting-text b {
-  display: block;
-  font-weight: 700;
-}
-.mt-setting-text small {
-  display: block;
-  color: var(--ph-muted);
-  font-size: 0.8125rem;
 }
 
 /* Sheets: shared extras */
@@ -3479,3 +3447,239 @@ html.is-phone #mPdfPreviewSlot .pdf-canvas-container {
   align-items: center;
   min-height: 44px;
 }
+
+/* Settings (phone): bottom bar label, grouped list rows, Sync card */
+.nav-label-phone,
+.m-icon {
+  display: none;
+}
+html.is-phone .nav-label-desk {
+  display: none;
+}
+html.is-phone .nav-label-phone {
+  display: inline;
+}
+.mt-section {
+  margin: 24px 0 8px 4px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ph-muted);
+}
+.mt-section:first-child {
+  margin-top: 0;
+}
+.mt-group {
+  padding: 0;
+  overflow: hidden;
+}
+.mt-foot {
+  margin: 8px 4px 0;
+  font-size: 0.8125rem;
+  color: var(--ph-muted);
+}
+.mt-li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ph-text);
+  font: inherit;
+  text-align: left;
+  justify-content: flex-start;
+  cursor: pointer;
+}
+.mt-li-static {
+  cursor: default;
+}
+.mt-li + .mt-li {
+  border-top: 1px solid var(--ph-line);
+}
+button.mt-li:active,
+label.mt-li:active {
+  background: var(--ph-primary-wash);
+}
+.mt-li-ic {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ph-primary-wash);
+  color: var(--ph-primary);
+}
+.mt-li-ic svg {
+  width: 20px;
+  height: 20px;
+}
+.mt-li-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.mt-li-main b {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.mt-li-main small,
+.mt-li-label {
+  font-size: 0.8125rem;
+  color: var(--ph-muted);
+}
+.mt-li-field input {
+  width: 100%;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ph-text);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.mt-li-field:focus-within {
+  box-shadow: inset 3px 0 0 var(--ph-primary);
+}
+.mt-li-value {
+  flex: none;
+  font-weight: 600;
+  color: var(--ph-muted);
+  font-variant-numeric: tabular-nums;
+}
+.mt-li-chev {
+  color: var(--ph-muted);
+}
+
+/* The real Sync controls, when they sit in the phone Settings card */
+html.is-phone #mSyncSlot .m-icon {
+  display: inline-flex;
+}
+html.is-phone #mSyncSlot svg.m-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+}
+html.is-phone #mSyncSlot .emo {
+  display: none;
+}
+#mSyncSlot .sync-toggle-row {
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 16px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+#mSyncSlot .sync-toggle-text {
+  flex: 1;
+}
+#mSyncSlot .sync-toggle-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ph-text);
+}
+#mSyncSlot .sync-toggle-hint {
+  color: var(--ph-muted);
+}
+#mSyncSlot #syncPairingArea {
+  margin: 0;
+  padding: 16px;
+  border-top: 1px solid var(--ph-line);
+}
+#mSyncSlot #syncPairingArea[hidden] {
+  display: none;
+}
+#mSyncSlot .sync-scan-big {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 56px;
+  border-radius: var(--ph-r);
+  border-color: var(--ph-primary);
+  background: var(--ph-primary);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1.0625rem;
+  box-shadow: none;
+}
+#mSyncSlot .sync-main-help {
+  color: var(--ph-muted);
+}
+#mSyncSlot .sync-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: var(--ph-r);
+  text-align: left;
+  font-size: 0.875rem;
+}
+#mSyncSlot .sync-warning[hidden] {
+  display: none;
+}
+#mSyncSlot .sync-warning svg.m-icon {
+  margin-top: 1px;
+}
+#mSyncSlot .sync-other {
+  margin-top: 8px;
+}
+#mSyncSlot .sync-other > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  color: var(--ph-primary);
+}
+#mSyncSlot .sync-other-body {
+  background: var(--ph-bg);
+  border-color: var(--ph-line);
+  border-radius: var(--ph-r);
+  padding: 16px;
+}
+#mSyncSlot .qr-code-box {
+  margin-bottom: 0;
+  max-width: 100%;
+}
+#mSyncSlot .join-room-row {
+  flex-wrap: wrap;
+}
+#mSyncSlot .join-room-row .form-input {
+  flex: 1 1 100%;
+}
+#mSyncSlot .join-room-row .form-input {
+  min-height: 44px;
+  font-size: 1rem;
+}
+#mSyncSlot .join-room-row .btn {
+  flex: none;
+  min-height: 44px;
+  flex: 1 1 100%;
+  justify-content: center;
+  background: var(--ph-primary);
+  border-color: var(--ph-primary);
+}
+#mSyncSlot .sync-other-actions .btn {
+  flex: 1 1 140px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--ph-r);
+}
+
+/* phone-only icons never render on laptop */
+html:not(.is-phone) .m-icon{display:none!important}

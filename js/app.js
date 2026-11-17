@@ -628,6 +628,7 @@ class ExpenseApp {
     // If Settings tab selected, re-render QR code
     if (tabId === 'tab-settings') {
       this.renderQrCode();
+      this.renderPhoneSettings();
     }
   }
 
@@ -816,6 +817,7 @@ class ExpenseApp {
     });
     document.querySelectorAll('.js-demo-receipts').forEach(btn =>
       btn.addEventListener('click', () => this.loadSampleReceipts()));
+    this.setupPhoneSettings();
 
     // Range chip rows (Ledger and PDF): the first chip opens the range sheet,
     // the month chips are one-tap shortcuts.
@@ -870,10 +872,61 @@ class ExpenseApp {
     }
   }
 
+  // ---- Phone Settings: My details, Data and About rows ----
+  // My details write straight into the PDF fields (same saving and preview
+  // refresh as typing there); Data rows press the existing backup controls.
+  setupPhoneSettings() {
+    const pairs = [['mSetName', 'pdfSubmitterName'], ['mSetDept', 'pdfDepartment']];
+    pairs.forEach(([phoneId, deskId]) => {
+      document.getElementById(phoneId).addEventListener('input', (e) => {
+        const target = document.getElementById(deskId);
+        target.value = e.target.value;
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+        this.renderPhonePdf();
+      });
+    });
+    document.getElementById('mSetCover').addEventListener('change', (e) => {
+      const target = document.getElementById('chkAddCover');
+      target.checked = e.target.checked;
+      target.dispatchEvent(new Event('change', { bubbles: true }));
+      this.renderPhonePdf();
+    });
+    document.getElementById('mSetExport').addEventListener('click', () => document.getElementById('btnExportBackup').click());
+    document.getElementById('mSetRestore').addEventListener('click', () => document.getElementById('inputRestoreBackup').click());
+    this.renderPhoneSettings();
+  }
+
+  // Fill My details from the PDF fields (they may have changed on the PDF tab)
+  renderPhoneSettings() {
+    const name = document.getElementById('mSetName');
+    if (!name) return;
+    name.value = document.getElementById('pdfSubmitterName').value;
+    document.getElementById('mSetDept').value = document.getElementById('pdfDepartment').value;
+    document.getElementById('mSetCover').checked = document.getElementById('chkAddCover').checked;
+  }
+
   // Moves shared pieces between the laptop and phone layouts when the
   // phone rule starts or stops matching.
   applyPhoneLayout() {
     const phone = document.documentElement.classList.contains('is-phone');
+    // Sync controls: the real switch row and pairing area live in the phone
+    // Settings card on phones, and in the laptop's Sync box otherwise.
+    const syncRow = document.querySelector('label.sync-toggle-row[for="toggleSync"]');
+    const pairing = document.getElementById('syncPairingArea');
+    const syncPhone = document.getElementById('mSyncSlot');
+    const syncDesk = document.getElementById('syncDeskHome');
+    if (syncRow && pairing && syncPhone && syncDesk) {
+      const target = phone ? syncPhone : syncDesk;
+      if (syncRow.parentElement !== target) { target.appendChild(syncRow); target.appendChild(pairing); }
+    }
+    // Shorter room-code hint on phones so it is never cut off
+    const join = document.getElementById('inputJoinRoom');
+    if (join) {
+      if (!join.dataset.deskPlaceholder) join.dataset.deskPlaceholder = join.placeholder;
+      join.placeholder = phone ? 'e.g. EXP-W7K9' : join.dataset.deskPlaceholder;
+      if (phone) join.setAttribute('aria-label', 'Room code to join');
+      else join.removeAttribute('aria-label');
+    }
     const preview = document.getElementById('pdfPreviewPanel');
     const phoneSlot = document.getElementById('mPdfPreviewSlot');
     const deskSlot = document.getElementById('pdfPreviewHome');
