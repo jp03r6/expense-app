@@ -59,12 +59,13 @@
     </button>
     <!-- Camera capture (photo) and PDF picker for the home screen -->
     <input type="file" id="phCameraInput" accept="image/*" capture="environment" hidden>
-    <input type="file" id="phPdfInput" accept="application/pdf,.pdf" hidden>
+    <!-- No capture attribute: phones offer the photo library and files -->
+    <input type="file" id="phUploadInput" accept="image/*,application/pdf" hidden>
 
     <div class="ph-alt">
-      <button id="phUploadPdf" class="ph-btn" type="button">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
-        <span>Upload PDF</span>
+      <button id="phUpload" class="ph-btn" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+        <span>Upload photo or PDF</span>
       </button>
       <button id="phNoReceipt" class="ph-btn" type="button">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>

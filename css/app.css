@@ -2457,13 +2457,17 @@ html.show-home body {
   margin: 0 var(--ph-s3);
 }
 .ph-btn {
-  flex: 1;
+  /* Sized by content, then share the leftover space, so the longer
+     'Upload photo or PDF' label gets more room and stays on one line */
+  flex: 1 1 auto;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   min-height: 48px;
-  padding: 0 var(--ph-s2);
+  padding: 0 12px;
+  white-space: nowrap;
   border: 1px solid var(--ph-line);
   border-radius: var(--ph-r);
   background: var(--ph-surface);
@@ -2473,6 +2477,14 @@ html.show-home body {
 }
 .ph-btn:active {
   background: var(--ph-primary-wash);
+}
+/* Smaller phones: tighten so both labels stay on one line; stack if tiny */
+@media (max-width: 380px) {
+  .ph-alt { gap: var(--ph-s1); }
+  .ph-btn { padding: 0 10px; font-size: 0.9375rem; }
+}
+@media (max-width: 340px) {
+  .ph-alt { flex-direction: column; }
 }
 
 .ph-recent {

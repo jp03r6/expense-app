@@ -761,10 +761,11 @@ class ExpenseApp {
     if (this.isPhone()) this.showPhoneHome();
 
     const cam = document.getElementById('phCameraInput');
-    const pdf = document.getElementById('phPdfInput');
+    const upload = document.getElementById('phUploadInput');
     document.getElementById('phSnap').addEventListener('click', () => cam.click());
-    document.getElementById('phUploadPdf').addEventListener('click', () => pdf.click());
-    [cam, pdf].forEach(input => {
+    document.getElementById('phUpload').addEventListener('click', () => upload.click());
+    // Photos and PDFs both go through the same add form (PDFs use the PDF path)
+    [cam, upload].forEach(input => {
       input.addEventListener('change', async () => {
         const file = input.files && input.files[0];
         input.value = '';
