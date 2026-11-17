@@ -3450,3 +3450,26 @@ html.is-phone #mPdfPreviewSlot .pdf-canvas-container {
 .ph-sheet .sync-switch:checked {
   background: var(--ph-primary);
 }
+
+/* Range presets right on the Ledger and PDF tabs (wrap, never scroll sideways) */
+.mt-chips-months {
+  margin-top: 8px;
+}
+.mt-range-line {
+  margin-top: 8px;
+  font-size: 0.875rem;
+  color: var(--ph-muted);
+  overflow-wrap: anywhere;
+}
+.mt-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ph-primary);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}

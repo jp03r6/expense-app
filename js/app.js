@@ -819,13 +819,19 @@ class ExpenseApp {
     // Range chip rows (Ledger and PDF): the first chip opens the range sheet,
     // the month chips are one-tap shortcuts.
     document.addEventListener('click', (e) => {
-      const chip = e.target.closest('.js-range-chips .mt-chip');
+      const chip = e.target.closest('.js-range-chips [data-preset], .js-range-chips [data-month]');
       if (!chip) return;
-      if (chip.classList.contains('js-range-open')) {
-        this.openRangeSheet();
+      // Run the laptop card's own buttons, so the phone filters exactly the same way
+      const card = document.getElementById('dateRangeCard');
+      if (chip.dataset.preset) {
+        const btn = card.querySelector(`[data-preset="${chip.dataset.preset}"]`);
+        if (btn) btn.click();
+        // Custom needs From/To dates, which live in the range sheet
+        if (chip.dataset.preset === 'custom') this.openRangeSheet();
       } else if (chip.dataset.month) {
-        this.dateRange = { preset: 'month', month: chip.dataset.month };
-        this._onRangeChanged();
+        const btn = card.querySelector(`[data-month="${chip.dataset.month}"]`);
+        if (btn) btn.click();
+        else { this.dateRange = { preset: 'month', month: chip.dataset.month }; this._onRangeChanged(); }
       }
     });
     this.applyPhoneLayout();
@@ -865,6 +871,8 @@ class ExpenseApp {
     return this._computeRange().label;
   }
 
+  // Presets are visible right on the tab (no sheet needed): This month,
+  // Last month, Last 90 days, Custom; then the months that have receipts.
   renderPhoneRangeChips() {
     const rows = document.querySelectorAll('.js-range-chips');
     if (!rows.length) return;
@@ -878,18 +886,30 @@ class ExpenseApp {
       }
     });
     const { preset, month } = this.dateRange;
-    const months = [...counts.keys()].sort().reverse()
-      .filter(ym => !(preset === 'month' && month === ym))
-      .slice(0, 3);
-    const html =
-      `<button type="button" class="mt-chip js-range-open" aria-pressed="true" aria-haspopup="dialog" aria-label="Date range: ${this._escape(this._rangeChipLabel())}, ${n} receipts. Change">` +
-        `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>` +
-        `<span>${this._escape(this._rangeChipLabel())} · ${n}</span>` +
-        `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>` +
-      `</button>` +
-      months.map(ym => `<button type="button" class="mt-chip" data-month="${ym}" aria-pressed="false"><span>${this._escape(this._monthName(ym, 'short'))}</span><span class="n">${counts.get(ym)}</span></button>`).join('');
-    rows.forEach(row => { row.innerHTML = html; });
+    const presets = [['this_month', 'This month'], ['last_month', 'Last month'], ['last_90', 'Last 90 days'], ['custom', 'Custom']];
+    const presetHtml = presets.map(([key, label]) => {
+      const on = preset === key;
+      const count = on ? `<span class="n">${n}</span>` : '';
+      const icon = key === 'custom' ? '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>' : '';
+      const aria = key === 'custom' ? ' aria-haspopup="dialog"' : '';
+      return `<button type="button" class="mt-chip" data-preset="${key}" aria-pressed="${on}"${aria}>${icon}<span>${label}</span>${count}</button>`;
+    }).join('');
+    const months = [...counts.keys()].sort().reverse().slice(0, 3);
+    const monthHtml = months.map(ym => {
+      const on = preset === 'month' && month === ym;
+      return `<button type="button" class="mt-chip" data-month="${ym}" aria-pressed="${on}"><span>${this._escape(this._monthName(ym, 'short'))}</span><span class="n">${counts.get(ym)}</span></button>`;
+    }).join('');
+    const customLine = preset === 'custom'
+      ? `<div class="mt-range-line">${this._escape(range.label)} · <button type="button" class="mt-link" data-preset="custom">Change dates</button></div>`
+      : '';
+    rows.forEach(row => {
+      row.innerHTML =
+        `<div class="mt-chips" role="group" aria-label="Date range">${presetHtml}</div>` +
+        (monthHtml ? `<div class="mt-chips mt-chips-months" role="group" aria-label="Months with receipts">${monthHtml}</div>` : '') +
+        customLine;
+    });
   }
+
 
   showPhoneHome() {
     document.documentElement.classList.add('show-home');
