@@ -102,47 +102,9 @@ class PdfCompiler {
    * Cover / Expense Summary Sheet
    */
   async _generateCoverPage(pdfDoc, report, receipts, ctx) {
-    const { PDFDocument, rgb } = this.PDFLib;
+    const { rgb } = this.PDFLib;
     const { fontRegular, fontBold, pageWidth, pageHeight, margin } = ctx;
 
-    const page = pdfDoc.addPage([pageWidth, pageHeight]);
-
-    // Top Header Banner
-    page.drawRectangle({
-      x: margin,
-      y: pageHeight - margin - 60,
-      width: pageWidth - (margin * 2),
-      height: 60,
-      color: rgb(0.31, 0.27, 0.90) // Primary Indigo
-    });
-
-    page.drawText('EXPENSE REPORT SUMMARY', {
-      x: margin + 20,
-      y: pageHeight - margin - 38,
-      size: 18,
-      font: fontBold,
-      color: rgb(1, 1, 1)
-    });
-
-    // Submitter and Report Metadata
-    const metaY = pageHeight - margin - 90;
-    page.drawText(report.periodLabel ? `Period:` : `Report Title:`, { x: margin, y: metaY, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
-    page.drawText(`${report.periodLabel || report.title || 'Business Expenses'}`, { x: margin + 80, y: metaY, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
-
-    page.drawText(`Submitter:`, { x: margin, y: metaY - 18, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
-    page.drawText(`${report.submitterName || 'Employee'}`, { x: margin + 80, y: metaY - 18, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
-
-    page.drawText(`Department:`, { x: margin, y: metaY - 36, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
-    page.drawText(`${report.department || '—'}`, { x: margin + 80, y: metaY - 36, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
-
-    page.drawText(`Date Generated:`, { x: pageWidth - margin - 180, y: metaY, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
-    page.drawText(`${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}`, { x: pageWidth - margin - 85, y: metaY, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
-
-    page.drawText(`Total Receipts:`, { x: pageWidth - margin - 180, y: metaY - 18, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
-    page.drawText(`${receipts.length}`, { x: pageWidth - margin - 85, y: metaY - 18, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
-
-    // Table Header (shifted down so the Department line has room)
-    let tableY = metaY - 68;
     const colX = {
       item: margin,
       date: margin + 40,
@@ -152,59 +114,163 @@ class PdfCompiler {
       amount: pageWidth - margin - 60
     };
 
-    // Header Background
-    page.drawRectangle({
-      x: margin,
-      y: tableY - 6,
-      width: pageWidth - (margin * 2),
-      height: 22,
-      color: rgb(0.93, 0.95, 0.98)
-    });
+    const noteSize = 7.5;
+    const noteLeading = 10;
+    const noteGap = 11;
+    const baseRowHeight = 18;
+    // Notes sit under Merchant and run across to the Amount column
+    const noteMaxWidth = colX.amount - colX.merchant - 4;
+    const totalReserve = 120;
+    const continueReserve = 72;
 
-    page.drawText('#', { x: colX.item + 5, y: tableY, size: 9, font: fontBold, color: rgb(0.3, 0.35, 0.4) });
-    page.drawText('Date', { x: colX.date, y: tableY, size: 9, font: fontBold, color: rgb(0.3, 0.35, 0.4) });
-    page.drawText('Merchant / Vendor', { x: colX.merchant, y: tableY, size: 9, font: fontBold, color: rgb(0.3, 0.35, 0.4) });
-    page.drawText('Category', { x: colX.category, y: tableY, size: 9, font: fontBold, color: rgb(0.3, 0.35, 0.4) });
-    page.drawText('Payment', { x: colX.payment, y: tableY, size: 9, font: fontBold, color: rgb(0.3, 0.35, 0.4) });
-    page.drawText('Amount', { x: colX.amount, y: tableY, size: 9, font: fontBold, color: rgb(0.3, 0.35, 0.4) });
+    let page = null;
+    let tableY = 0;
+
+    const drawFooterNote = () => {
+      page.drawText('NOTE: All original receipts are sequentially organized on the following pages matching item numbers above.', {
+        x: margin,
+        y: 60,
+        size: 8.5,
+        font: fontRegular,
+        color: rgb(0.4, 0.45, 0.5)
+      });
+    };
+
+    const drawTableHeader = () => {
+      page.drawRectangle({
+        x: margin,
+        y: tableY - 6,
+        width: pageWidth - (margin * 2),
+        height: 22,
+        color: rgb(0.93, 0.95, 0.98)
+      });
+
+      page.drawText('#', { x: colX.item + 5, y: tableY, size: 9, font: fontBold, color: rgb(0.3, 0.35, 0.4) });
+      page.drawText('Date', { x: colX.date, y: tableY, size: 9, font: fontBold, color: rgb(0.3, 0.35, 0.4) });
+      page.drawText('Merchant / Vendor', { x: colX.merchant, y: tableY, size: 9, font: fontBold, color: rgb(0.3, 0.35, 0.4) });
+      page.drawText('Category', { x: colX.category, y: tableY, size: 9, font: fontBold, color: rgb(0.3, 0.35, 0.4) });
+      page.drawText('Payment', { x: colX.payment, y: tableY, size: 9, font: fontBold, color: rgb(0.3, 0.35, 0.4) });
+      page.drawText('Amount', { x: colX.amount, y: tableY, size: 9, font: fontBold, color: rgb(0.3, 0.35, 0.4) });
+      tableY -= 20;
+    };
+
+    const startPage = (continued) => {
+      page = pdfDoc.addPage([pageWidth, pageHeight]);
+
+      if (!continued) {
+        // Top Header Banner
+        page.drawRectangle({
+          x: margin,
+          y: pageHeight - margin - 60,
+          width: pageWidth - (margin * 2),
+          height: 60,
+          color: rgb(0.31, 0.27, 0.90) // Primary Indigo
+        });
+
+        page.drawText('EXPENSE REPORT SUMMARY', {
+          x: margin + 20,
+          y: pageHeight - margin - 38,
+          size: 18,
+          font: fontBold,
+          color: rgb(1, 1, 1)
+        });
+
+        // Submitter and Report Metadata
+        const metaY = pageHeight - margin - 90;
+        page.drawText(report.periodLabel ? `Period:` : `Report Title:`, { x: margin, y: metaY, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
+        page.drawText(`${report.periodLabel || report.title || 'Business Expenses'}`, { x: margin + 80, y: metaY, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
+
+        page.drawText(`Submitter:`, { x: margin, y: metaY - 18, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
+        page.drawText(`${report.submitterName || 'Employee'}`, { x: margin + 80, y: metaY - 18, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
+
+        page.drawText(`Department:`, { x: margin, y: metaY - 36, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
+        page.drawText(`${report.department || '—'}`, { x: margin + 80, y: metaY - 36, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
+
+        page.drawText(`Date Generated:`, { x: pageWidth - margin - 180, y: metaY, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
+        page.drawText(`${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}`, { x: pageWidth - margin - 85, y: metaY, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
+
+        page.drawText(`Total Receipts:`, { x: pageWidth - margin - 180, y: metaY - 18, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
+        page.drawText(`${receipts.length}`, { x: pageWidth - margin - 85, y: metaY - 18, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
+
+        tableY = metaY - 68;
+      } else {
+        page.drawRectangle({
+          x: margin,
+          y: pageHeight - margin - 36,
+          width: pageWidth - (margin * 2),
+          height: 36,
+          color: rgb(0.31, 0.27, 0.90)
+        });
+        page.drawText('EXPENSE REPORT SUMMARY (continued)', {
+          x: margin + 20,
+          y: pageHeight - margin - 24,
+          size: 14,
+          font: fontBold,
+          color: rgb(1, 1, 1)
+        });
+        tableY = pageHeight - margin - 60;
+      }
+
+      drawTableHeader();
+      drawFooterNote();
+    };
+
+    startPage(false);
 
     let grandTotal = 0;
-    tableY -= 20;
 
-    // Render Table Rows (up to 20 per cover page; if more, rows fit compactly)
     receipts.forEach((r, idx) => {
       const amount = parseFloat(r.amount) || 0;
       grandTotal += amount;
 
-      if (tableY > 120) {
-        // Alternating row background
-        if (idx % 2 === 1) {
-          page.drawRectangle({
-            x: margin,
-            y: tableY - 4,
-            width: pageWidth - (margin * 2),
-            height: 18,
-            color: rgb(0.98, 0.99, 1.0)
-          });
-        }
+      const noteLines = this._wrapPdfText(r.notes, fontRegular, noteSize, noteMaxWidth, 2);
+      const extra = noteLines.length ? (noteLines.length * noteLeading + 2) : 0;
+      const rowHeight = baseRowHeight + extra;
+      const isLast = idx === receipts.length - 1;
+      const reserve = isLast ? totalReserve : continueReserve;
 
-        page.drawText(`${idx + 1}`, { x: colX.item + 5, y: tableY, size: 8.5, font: fontBold, color: rgb(0.3, 0.3, 0.8) });
-        page.drawText(`${r.date || '-'}`, { x: colX.date, y: tableY, size: 8.5, font: fontRegular, color: rgb(0.2, 0.2, 0.2) });
-        
-        const merchantText = this._truncateText(r.merchant || 'Receipt', fontRegular, 8.5, 120);
-        page.drawText(merchantText, { x: colX.merchant, y: tableY, size: 8.5, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
-
-        const catText = this._truncateText(this._displayCategory(r), fontRegular, 8.5, 110);
-        page.drawText(catText, { x: colX.category, y: tableY, size: 8.5, font: fontRegular, color: rgb(0.3, 0.3, 0.3) });
-
-        const payText = this._truncateText(this._displayPayment(r), fontRegular, 8.5, 90);
-        page.drawText(payText, { x: colX.payment, y: tableY, size: 8.5, font: fontRegular, color: rgb(0.4, 0.4, 0.4) });
-
-        const amountStr = `$${amount.toFixed(2)}`;
-        page.drawText(amountStr, { x: colX.amount, y: tableY, size: 8.5, font: fontBold, color: rgb(0.02, 0.55, 0.35) });
-
-        tableY -= 18;
+      // Continue the table on a new cover page instead of silently dropping rows
+      if (tableY - rowHeight < reserve) {
+        startPage(true);
       }
+
+      // Alternating row background covers the main line and any notes
+      if (idx % 2 === 1) {
+        page.drawRectangle({
+          x: margin,
+          y: tableY - (rowHeight - 14),
+          width: pageWidth - (margin * 2),
+          height: rowHeight,
+          color: rgb(0.98, 0.99, 1.0)
+        });
+      }
+
+      page.drawText(`${idx + 1}`, { x: colX.item + 5, y: tableY, size: 8.5, font: fontBold, color: rgb(0.3, 0.3, 0.8) });
+      page.drawText(`${r.date || '-'}`, { x: colX.date, y: tableY, size: 8.5, font: fontRegular, color: rgb(0.2, 0.2, 0.2) });
+
+      const merchantText = this._truncateText(r.merchant || 'Receipt', fontRegular, 8.5, 120);
+      page.drawText(merchantText, { x: colX.merchant, y: tableY, size: 8.5, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+
+      const catText = this._truncateText(this._displayCategory(r), fontRegular, 8.5, 110);
+      page.drawText(catText, { x: colX.category, y: tableY, size: 8.5, font: fontRegular, color: rgb(0.3, 0.3, 0.3) });
+
+      const payText = this._truncateText(this._displayPayment(r), fontRegular, 8.5, 90);
+      page.drawText(payText, { x: colX.payment, y: tableY, size: 8.5, font: fontRegular, color: rgb(0.4, 0.4, 0.4) });
+
+      const amountStr = `$${amount.toFixed(2)}`;
+      page.drawText(amountStr, { x: colX.amount, y: tableY, size: 8.5, font: fontBold, color: rgb(0.02, 0.55, 0.35) });
+
+      noteLines.forEach((line, i) => {
+        page.drawText(line, {
+          x: colX.merchant,
+          y: tableY - noteGap - i * noteLeading,
+          size: noteSize,
+          font: fontRegular,
+          color: rgb(0.45, 0.45, 0.5)
+        });
+      });
+
+      tableY -= rowHeight;
     });
 
     // Divider Line
@@ -242,15 +308,6 @@ class PdfCompiler {
       size: 13,
       font: fontBold,
       color: rgb(0.02, 0.55, 0.35)
-    });
-
-    // Note to Accounting / Reviewer
-    page.drawText('NOTE: All original receipts are sequentially organized on the following pages matching item numbers above.', {
-      x: margin,
-      y: 60,
-      size: 8.5,
-      font: fontRegular,
-      color: rgb(0.4, 0.45, 0.5)
     });
   }
 
@@ -521,6 +578,58 @@ class PdfCompiler {
       return window.expenseLabels.displayPayment(receipt.paymentMethod);
     }
     return receipt.paymentMethod || 'Card';
+  }
+
+  // Helvetica (WinAnsi) cannot encode every character (emoji, many
+  // non-Latin letters). Replace those so a note cannot break the PDF.
+  _sanitizePdfText(text, font) {
+    const raw = String(text || '').replace(/[\t\n\r]+/g, ' ').replace(/ +/g, ' ').trim();
+    if (!raw) return '';
+    let out = '';
+    for (const ch of raw) {
+      try {
+        font.encodeText(ch);
+        out += ch;
+      } catch (e) {
+        // Drop characters Helvetica cannot draw, rather than inserting '?'
+      }
+    }
+    return out.replace(/ +/g, ' ').trim();
+  }
+
+  // Wrap to at most maxLines, then truncate the last line with an ellipsis.
+  _wrapPdfText(text, font, size, maxWidth, maxLines) {
+    const sanitized = this._sanitizePdfText(text, font);
+    if (!sanitized) return [];
+    const words = sanitized.split(' ').filter(Boolean);
+    const lines = [];
+    let i = 0;
+    while (i < words.length && lines.length < maxLines) {
+      let line = words[i++];
+      while (i < words.length) {
+        const trial = `${line} ${words[i]}`;
+        if (font.widthOfTextAtSize(trial, size) <= maxWidth) {
+          line = trial;
+          i++;
+        } else {
+          break;
+        }
+      }
+      if (font.widthOfTextAtSize(line, size) > maxWidth) {
+        line = this._truncateText(line, font, size, maxWidth);
+      }
+      lines.push(line);
+    }
+    if (i < words.length && lines.length) {
+      let t = lines[lines.length - 1];
+      if (!t.endsWith('...')) {
+        while (t.length > 0 && font.widthOfTextAtSize(`${t}...`, size) > maxWidth) {
+          t = t.slice(0, -1);
+        }
+        lines[lines.length - 1] = `${t}...`;
+      }
+    }
+    return lines;
   }
 
   _truncateText(text, font, size, maxWidth) {

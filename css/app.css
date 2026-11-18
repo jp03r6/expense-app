@@ -2383,22 +2383,6 @@ html.show-home body {
 .ph-brand svg {
   color: var(--ph-primary);
 }
-.ph-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  margin: -10px -10px -10px 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--ph-muted);
-}
-.ph-icon-btn:active {
-  background: var(--ph-line);
-}
-
 .ph-month {
   margin: 0 var(--ph-s3);
   padding: var(--ph-s3);
@@ -2464,8 +2448,7 @@ html.show-home body {
   margin: 0 var(--ph-s3);
 }
 .ph-btn {
-  /* Sized by content, then share the leftover space, so the longer
-     'Upload photo or PDF' label gets more room and stays on one line */
+  /* Full width under Snap now that this is the only alternate action */
   flex: 1 1 auto;
   min-width: 0;
   display: inline-flex;
@@ -2485,13 +2468,9 @@ html.show-home body {
 .ph-btn:active {
   background: var(--ph-primary-wash);
 }
-/* Smaller phones: tighten so both labels stay on one line; stack if tiny */
+/* Smaller phones: slightly tighter padding on the upload button */
 @media (max-width: 380px) {
-  .ph-alt { gap: var(--ph-s1); }
   .ph-btn { padding: 0 10px; font-size: 0.9375rem; }
-}
-@media (max-width: 340px) {
-  .ph-alt { flex-direction: column; }
 }
 
 .ph-recent {
