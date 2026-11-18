@@ -2303,7 +2303,10 @@ button {
   src: url('../vendor/fonts/plus-jakarta-sans-latin.woff2') format('woff2');
 }
 
-.phone-home {
+.phone-home,
+.ph-sheet,
+.mt,
+html.is-phone .mobile-nav-bar {
   --ph-primary: #1E40AF;
   --ph-primary-hover: #1E3A8A;
   --ph-primary-wash: #EFF4FF;
@@ -2317,10 +2320,14 @@ button {
   --ph-s2: 16px;
   --ph-s3: 24px;
   --ph-r: 12px;
+}
+.phone-home {
   display: none;
   flex-direction: column;
   min-height: 100vh;
   min-height: 100dvh;
+  /* room for the bottom menu bar */
+  padding-bottom: calc(var(--nav-height) + 16px + env(safe-area-inset-bottom, 0px));
   background: var(--ph-bg);
   color: var(--ph-text);
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -2331,7 +2338,7 @@ html.show-home .phone-home {
   display: flex;
 }
 /* While home is showing, hide the full app (modals and toasts still work) */
-html.show-home body > :not(#phoneHome):not(.modal-overlay):not(.toast-container):not(script) {
+html.show-home body > :not(#phoneHome):not(.mobile-nav-bar):not(.modal-overlay):not(.toast-container):not(script) {
   display: none !important;
 }
 html.show-home body {
@@ -2534,25 +2541,11 @@ html.show-home body {
   font-size: 0.9375rem;
 }
 
-.ph-foot {
-  margin-top: auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  min-height: 56px;
-  padding: var(--ph-s2) var(--ph-s3);
-  padding-bottom: calc(var(--ph-s2) + env(safe-area-inset-bottom, 0px));
-  border: 0;
-  border-top: 1px solid var(--ph-line);
-  background: var(--ph-surface);
-  color: var(--ph-muted);
-  font-size: 1rem;
-  font-weight: 600;
-  text-align: left;
-}
 
-[data-theme="dark"] .phone-home {
+[data-theme="dark"] .phone-home,
+[data-theme="dark"] .ph-sheet,
+[data-theme="dark"] .mt,
+html.is-phone[data-theme="dark"] .mobile-nav-bar {
   --ph-bg: #0F172A;
   --ph-surface: #1E293B;
   --ph-line: #334155;
@@ -2585,3 +2578,1112 @@ html.is-phone .mobile-nav-bar {
 html.is-phone .app-container {
   padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
 }
+
+
+/* Upload choice sheet (phone home) */
+.ph-sheet-overlay {
+  align-items: flex-end;
+  padding: 0;
+}
+.ph-sheet {
+  width: 100%;
+  max-width: 520px;
+  background: var(--ph-surface);
+  color: var(--ph-text);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  border-radius: 20px 20px 0 0;
+  padding: var(--ph-s3) var(--ph-s3) calc(var(--ph-s2) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--ph-s1);
+  transform: translateY(24px);
+  transition: transform 0.2s ease;
+}
+.ph-sheet-overlay.open .ph-sheet {
+  transform: none;
+}
+.ph-sheet-title {
+  margin: 0 0 var(--ph-s1);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+.ph-sheet-option {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--ph-s2);
+  width: 100%;
+  min-height: 64px;
+  padding: 12px var(--ph-s2);
+  border: 1px solid var(--ph-line);
+  border-radius: var(--ph-r);
+  background: var(--ph-surface);
+  color: var(--ph-text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ph-sheet-option:active {
+  background: var(--ph-primary-wash);
+}
+.ph-sheet-option svg {
+  width: 24px;
+  height: 24px;
+  stroke: var(--ph-primary);
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+.ph-sheet-text b {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.ph-sheet-text small {
+  color: var(--ph-muted);
+  font-size: 0.8125rem;
+}
+.ph-sheet-cancel {
+  margin-top: var(--ph-s1);
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--ph-r);
+  background: transparent;
+  color: var(--ph-muted);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ph-sheet button:focus-visible {
+  outline: 3px solid var(--ph-primary);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ph-sheet { transition: none; transform: none; }
+}
+
+/* ==========================================================================
+   Phone layout (shared): page titles instead of the purple header, restyled
+   bottom bar, sheets, range chip. Everything is scoped to html.is-phone or to
+   phone-only (.m-only) blocks, so the laptop layout is untouched.
+   ========================================================================== */
+.m-only { display: none !important; }
+html.is-phone .m-only { display: block !important; }
+html.is-phone .d-only { display: none !important; }
+
+html.is-phone .app-header,
+html.is-phone .nav-tabs,
+html.is-phone .fab-btn {
+  display: none !important;
+}
+html.is-phone:not([data-theme="dark"]) body {
+  background: #F6F7F9;
+}
+html.is-phone .app-container {
+  padding: 0 0 calc(var(--nav-height) + 24px + env(safe-area-inset-bottom, 0px));
+  gap: 0;
+  max-width: 100%;
+}
+html.is-phone #tab-settings {
+  padding: 0 0 8px;
+}
+
+/* Bottom bar, matching the home screen */
+html.is-phone .mobile-nav-bar {
+  background: var(--ph-surface);
+  border-top: 1px solid var(--ph-line);
+  box-shadow: none;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  padding-left: max(4px, env(safe-area-inset-left, 0px));
+  padding-right: max(4px, env(safe-area-inset-right, 0px));
+}
+html.is-phone .mobile-nav-item {
+  color: var(--ph-muted);
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  font-size: 0.75rem;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 0 6px;
+}
+html.is-phone .mobile-nav-item svg {
+  box-sizing: content-box;
+  width: 22px;
+  height: 22px;
+  padding: 4px 14px;
+  border-radius: 999px;
+}
+html.is-phone .mobile-nav-item.active {
+  color: var(--ph-primary);
+  background: transparent;
+  box-shadow: none;
+}
+html.is-phone .mobile-nav-item.active svg {
+  background: var(--ph-primary-wash);
+}
+/* On the phone home screen the Home tab is the active one, even before the
+   app's script has run (index.html sets show-home before the first paint). */
+html.show-home .mobile-nav-bar .mobile-nav-item.active:not(#navHome) {
+  color: var(--ph-muted);
+}
+html.show-home .mobile-nav-bar .mobile-nav-item.active:not(#navHome) svg {
+  background: transparent;
+}
+html.show-home .mobile-nav-bar #navHome {
+  color: var(--ph-primary);
+  background: transparent;
+  box-shadow: none;
+}
+html.show-home .mobile-nav-bar #navHome svg {
+  background: var(--ph-primary-wash);
+}
+
+/* Phone tab building blocks (.mt = "mobile tab") */
+.mt {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ph-text);
+  line-height: 1.5;
+}
+.mt svg,
+.ph-sheet svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+.mt button {
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.mt button:focus-visible,
+.mt input:focus-visible {
+  outline: 3px solid var(--ph-primary);
+  outline-offset: 2px;
+}
+.mt-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 24px 16px;
+}
+.mt-top > div {
+  min-width: 0;
+}
+.mt-top h1 {
+  margin: 0;
+  font-size: 1.563rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--ph-text);
+}
+.mt-sub {
+  margin-top: 2px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ph-muted);
+}
+.mt-px {
+  padding: 0 24px;
+}
+.mt-fab {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ph-primary);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.mt-fab svg { width: 24px; height: 24px; }
+.mt-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--ph-line);
+  border-radius: var(--ph-r);
+  background: var(--ph-surface);
+  color: var(--ph-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.mt-btn:disabled,
+.mt-big-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.mt-big-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--ph-r);
+  background: var(--ph-primary);
+  color: #fff;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+.mt-chips {
+  display: flex;
+  flex-wrap: wrap; /* wrap instead of scrolling sideways, so no chip is ever cut off */
+  gap: 8px;
+}
+.mt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  max-width: 100%;
+  padding: 0 14px;
+  border: 1px solid var(--ph-line);
+  border-radius: 999px;
+  background: var(--ph-surface);
+  color: var(--ph-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.mt-chip > span:not(.n) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mt-chip svg { width: 16px; height: 16px; }
+.mt-chip .n {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ph-muted);
+}
+.mt-chip[aria-pressed="true"] {
+  background: var(--ph-primary-wash);
+  border-color: var(--ph-primary);
+  color: var(--ph-primary);
+}
+.mt-card {
+  background: var(--ph-surface);
+  border: 1px solid var(--ph-line);
+  border-radius: 16px;
+  padding: 16px;
+}
+.mt-label {
+  margin: 24px 0 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ph-muted);
+}
+.mt-group-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 24px 24px 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ph-muted);
+}
+.mt-list {
+  background: var(--ph-surface);
+  border-top: 1px solid var(--ph-line);
+  border-bottom: 1px solid var(--ph-line);
+}
+.mt-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 24px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+}
+.mt-row + .mt-row {
+  border-top: 1px solid var(--ph-line);
+}
+.mt-row:active {
+  background: var(--ph-primary-wash);
+}
+.mt-row-t {
+  flex: 1;
+  min-width: 0;
+}
+.mt-row-t b {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mt-row-t small {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--ph-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mt-money {
+  flex: none;
+  color: var(--ph-money);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.mt-empty {
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--ph-muted);
+}
+.mt-empty b {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1.125rem;
+  color: var(--ph-text);
+}
+.mt-empty .mt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+.mt-empty .mt-actions .mt-btn.primary {
+  background: var(--ph-primary);
+  border-color: var(--ph-primary);
+  color: #fff;
+}
+
+/* Sheets: shared extras */
+.ph-sheet {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ph-sheet-grab {
+  width: 40px;
+  height: 4px;
+  margin: -8px auto 8px;
+  border-radius: 2px;
+  background: var(--ph-line);
+  flex: none;
+}
+.ph-sheet-sub {
+  margin: -8px 0 4px;
+  font-size: 0.875rem;
+  color: var(--ph-muted);
+}
+.ph-sheet-primary {
+  margin-top: 8px;
+  min-height: 52px;
+  border: 0;
+  border-radius: var(--ph-r);
+  background: var(--ph-primary);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ph-sheet-option small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+/* The shared date range card, when it sits inside the range sheet */
+#rangeSheetSlot .date-range-card {
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+}
+#rangeSheetSlot .date-range-head {
+  display: none;
+}
+/* Range sheet: match the phone colors, and stack From/To on narrow phones so
+   the dates are never cut off */
+#rangeSheetSlot .range-chip[aria-pressed="true"] {
+  border-color: var(--ph-primary);
+  background: var(--ph-primary);
+  color: #fff;
+}
+#rangeSheetSlot .range-custom .form-input {
+  min-height: 48px;
+  font-size: 1rem;
+}
+@media (max-width: 400px) {
+  #rangeSheetSlot .range-custom {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Receipts (phone) */
+.mt-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--ph-line);
+  border-radius: var(--ph-r);
+  background: var(--ph-surface);
+  color: var(--ph-muted);
+  cursor: text;
+}
+.mt-search:focus-within {
+  border-color: var(--ph-primary);
+  box-shadow: 0 0 0 3px var(--ph-primary-wash);
+}
+.mt-search input {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--ph-text);
+  font: inherit;
+  font-size: 1rem; /* 16px keeps iOS from zooming in */
+}
+.mt-search input:focus-visible {
+  outline: 0;
+}
+.mt-cat-chips {
+  margin-top: 12px;
+}
+.mt-thumb {
+  flex: none;
+  width: 44px;
+  height: 56px;
+  border: 1px solid var(--ph-line);
+  border-radius: 8px;
+  object-fit: cover;
+  object-position: top;
+  background: #fff;
+}
+
+/* Receipt detail sheet */
+.ph-detail {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.ph-detail-photo {
+  flex: none;
+  width: 112px;
+  height: 152px;
+  padding: 0;
+  border: 1px solid var(--ph-line);
+  border-radius: var(--ph-r);
+  overflow: hidden;
+  background: #fff;
+  cursor: zoom-in;
+}
+.ph-detail-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+.ph-detail-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ph-detail-text h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ph-text);
+}
+.ph-detail-amount {
+  margin: 4px 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ph-money);
+  font-variant-numeric: tabular-nums;
+}
+.ph-detail-meta {
+  font-size: 0.875rem;
+  color: var(--ph-muted);
+}
+.ph-detail-notes {
+  margin-top: 6px;
+  font-size: 0.875rem;
+  color: var(--ph-text);
+}
+.ph-detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+/* Icon above the label, so all three always fit, even on a 320px screen */
+.ph-action {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 1px solid var(--ph-line);
+  border-radius: var(--ph-r);
+  background: var(--ph-surface);
+  color: var(--ph-text);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ph-action.primary {
+  background: var(--ph-primary);
+  border-color: var(--ph-primary);
+  color: #fff;
+}
+.ph-action.danger {
+  color: #B91C1C;
+}
+[data-theme="dark"] .ph-action.danger {
+  color: #FCA5A5;
+}
+.ph-action:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.ph-action:focus-visible {
+  outline: 3px solid var(--ph-primary);
+  outline-offset: 2px;
+}
+
+/* Ledger (phone) */
+.mt-led-card-wrap {
+  margin-top: 16px;
+}
+.mt-led-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ph-muted);
+}
+.mt-led-total {
+  font-size: 2.441rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--ph-money);
+  font-variant-numeric: tabular-nums;
+}
+.mt-bars {
+  display: grid;
+  grid-template-columns: auto minmax(24px, 1fr) auto;
+  gap: 6px 12px;
+  align-items: center;
+  margin-top: 12px;
+  font-size: 0.875rem;
+}
+.mt-bars:empty {
+  display: none;
+}
+.mt-bars .bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ph-primary-wash);
+  overflow: hidden;
+}
+.mt-bars .bar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--ph-primary);
+}
+.mt-bars .amt {
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.mt-date {
+  flex: none;
+  width: 40px;
+  text-align: center;
+  line-height: 1.1;
+}
+.mt-date .m {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--ph-muted);
+}
+.mt-date .d {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+/* PDF (phone) */
+.mt-label-first {
+  margin-top: 0;
+}
+.mt-label-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mt-label-row span + span {
+  font-weight: 600;
+}
+.mt-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.mt-tile {
+  min-width: 0;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 4px 10px;
+  border: 1px solid var(--ph-line);
+  border-radius: var(--ph-r);
+  background: var(--ph-surface);
+  color: var(--ph-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+}
+.mt-tile[aria-checked="true"] {
+  border-color: var(--ph-primary);
+  box-shadow: inset 0 0 0 1px var(--ph-primary);
+  background: var(--ph-primary-wash);
+  color: var(--ph-primary);
+}
+.mt-tile .mini {
+  width: 36px;
+  height: 46px;
+  margin-bottom: 8px;
+  padding: 4px;
+  display: grid;
+  gap: 3px;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+  opacity: 0.85;
+}
+.mt-tile .mini i {
+  background: currentColor;
+  opacity: 0.35;
+  border-radius: 1px;
+}
+.mt-tile .mini-2 { grid-template-rows: 1fr 1fr; }
+.mt-tile .mini-4 { grid-template: 1fr 1fr / 1fr 1fr; }
+.mt-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  color: var(--ph-text);
+  text-align: left;
+  font: inherit;
+}
+.mt-detail-row > svg {
+  color: var(--ph-muted);
+}
+/* PDF details row: let the text wrap instead of trailing off */
+.mt-detail-row .mt-row-t b,
+.mt-detail-row .mt-row-t small {
+  white-space: normal;
+  overflow: visible;
+}
+.mt-big-btn#mPdfCreate {
+  margin-top: 16px;
+}
+.mt-preview-card {
+  padding: 12px;
+}
+html.is-phone #mPdfPreviewSlot .pdf-preview-panel {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 6px;
+  width: 100%;
+}
+html.is-phone #mPdfPreviewSlot .pdf-preview-toolbar {
+  display: none;
+}
+html.is-phone #mPdfPreviewSlot .pdf-canvas-container {
+  box-shadow: none;
+  border: 1px solid var(--ph-line);
+  border-radius: 6px;
+  min-height: 120px;
+}
+.mt-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ph-muted);
+}
+.mt-pager-btn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ph-line);
+  border-radius: 50%;
+  background: var(--ph-surface);
+  color: var(--ph-primary);
+}
+.mt-pager-btn:disabled {
+  color: var(--ph-muted);
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Fields inside sheets */
+.ph-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.ph-field label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ph-muted);
+}
+.ph-field input {
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--ph-line);
+  border-radius: var(--ph-r);
+  background: var(--ph-surface);
+  color: var(--ph-text);
+  font: inherit;
+  font-size: 1rem;
+}
+.ph-field input:focus {
+  outline: 0;
+  border-color: var(--ph-primary);
+  box-shadow: 0 0 0 3px var(--ph-primary-wash);
+}
+.ph-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
+  margin-top: 8px;
+  cursor: pointer;
+}
+.ph-switch-row .ph-sheet-text small {
+  color: var(--ph-muted);
+}
+.mt .sync-switch:checked,
+.ph-sheet .sync-switch:checked {
+  background: var(--ph-primary);
+}
+
+/* Range presets right on the Ledger and PDF tabs (wrap, never scroll sideways) */
+.mt-chips-months {
+  margin-top: 8px;
+}
+.mt-range-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 12px;
+  margin-top: 4px;
+  font-size: 0.875rem;
+  color: var(--ph-muted);
+}
+.mt-range-text {
+  overflow-wrap: anywhere;
+}
+.mt-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ph-primary);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* Settings (phone): bottom bar label, grouped list rows, Sync card */
+.nav-label-phone,
+.m-icon {
+  display: none;
+}
+html.is-phone .nav-label-desk {
+  display: none;
+}
+html.is-phone .nav-label-phone {
+  display: inline;
+}
+.mt-section {
+  margin: 24px 0 8px 4px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ph-muted);
+}
+.mt-section:first-child {
+  margin-top: 0;
+}
+.mt-group {
+  padding: 0;
+  overflow: hidden;
+}
+.mt-foot {
+  margin: 8px 4px 0;
+  font-size: 0.8125rem;
+  color: var(--ph-muted);
+}
+.mt-li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ph-text);
+  font: inherit;
+  text-align: left;
+  justify-content: flex-start;
+  cursor: pointer;
+}
+.mt-li-static {
+  cursor: default;
+}
+.mt-li + .mt-li {
+  border-top: 1px solid var(--ph-line);
+}
+button.mt-li:active,
+label.mt-li:active {
+  background: var(--ph-primary-wash);
+}
+.mt-li-ic {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ph-primary-wash);
+  color: var(--ph-primary);
+}
+.mt-li-ic svg {
+  width: 20px;
+  height: 20px;
+}
+.mt-li-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.mt-li-main b {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.mt-li-main small,
+.mt-li-label {
+  font-size: 0.8125rem;
+  color: var(--ph-muted);
+}
+.mt-li-field input {
+  width: 100%;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ph-text);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.mt-li-field:focus-within {
+  box-shadow: inset 3px 0 0 var(--ph-primary);
+}
+.mt-li-value {
+  flex: none;
+  font-weight: 600;
+  color: var(--ph-muted);
+  font-variant-numeric: tabular-nums;
+}
+.mt-li-chev {
+  color: var(--ph-muted);
+}
+
+/* The real Sync controls, when they sit in the phone Settings card */
+html.is-phone #mSyncSlot .m-icon {
+  display: inline-flex;
+}
+html.is-phone #mSyncSlot svg.m-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+}
+html.is-phone #mSyncSlot .emo {
+  display: none;
+}
+#mSyncSlot .sync-toggle-row {
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 16px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+#mSyncSlot .sync-toggle-text {
+  flex: 1;
+}
+#mSyncSlot .sync-toggle-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ph-text);
+}
+#mSyncSlot .sync-toggle-hint {
+  color: var(--ph-muted);
+}
+#mSyncSlot #syncPairingArea {
+  margin: 0;
+  padding: 16px;
+  border-top: 1px solid var(--ph-line);
+}
+#mSyncSlot #syncPairingArea[hidden] {
+  display: none;
+}
+#mSyncSlot .sync-scan-big {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 56px;
+  border-radius: var(--ph-r);
+  border-color: var(--ph-primary);
+  background: var(--ph-primary);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1.0625rem;
+  box-shadow: none;
+}
+#mSyncSlot .sync-main-help {
+  color: var(--ph-muted);
+}
+#mSyncSlot .sync-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: var(--ph-r);
+  text-align: left;
+  font-size: 0.875rem;
+}
+#mSyncSlot .sync-warning[hidden] {
+  display: none;
+}
+#mSyncSlot .sync-warning svg.m-icon {
+  margin-top: 1px;
+}
+#mSyncSlot .sync-other {
+  margin-top: 8px;
+}
+#mSyncSlot .sync-other > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  color: var(--ph-primary);
+}
+#mSyncSlot .sync-other-body {
+  background: var(--ph-bg);
+  border-color: var(--ph-line);
+  border-radius: var(--ph-r);
+  padding: 16px;
+}
+#mSyncSlot .qr-code-box {
+  margin-bottom: 0;
+  max-width: 100%;
+}
+#mSyncSlot .join-room-row {
+  flex-wrap: wrap;
+}
+#mSyncSlot .join-room-row .form-input {
+  flex: 1 1 100%;
+}
+#mSyncSlot .join-room-row .form-input {
+  min-height: 44px;
+  font-size: 1rem;
+}
+#mSyncSlot .join-room-row .btn {
+  flex: none;
+  min-height: 44px;
+  flex: 1 1 100%;
+  justify-content: center;
+  background: var(--ph-primary);
+  border-color: var(--ph-primary);
+}
+#mSyncSlot .sync-other-actions .btn {
+  flex: 1 1 140px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--ph-r);
+}
+
+/* phone-only icons never render on laptop */
+html:not(.is-phone) .m-icon{display:none!important}
+
+/* Export-backup sheet: centered card when it shows on a laptop (Safari) */
+html:not(.is-phone) #modalBackup{align-items:center;padding:24px}
+html:not(.is-phone) #modalBackup .ph-sheet{border-radius:20px}

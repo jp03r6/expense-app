@@ -14,7 +14,7 @@
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   
-  <link rel="stylesheet" href="css/app.css?v=13">
+  <link rel="stylesheet" href="css/app.css?v=19">
   <script>
     // Phones (narrow or touch screen) open on the quick-capture home screen.
     // Decided before the first paint so the full app never flashes first.
@@ -59,8 +59,11 @@
     </button>
     <!-- Camera capture (photo) and PDF picker for the home screen -->
     <input type="file" id="phCameraInput" accept="image/*" capture="environment" hidden>
-    <!-- No capture attribute: phones offer the photo library and files -->
-    <input type="file" id="phUploadInput" accept="image/*,application/pdf" hidden>
+    <!-- Upload choices (see #modalUploadChoice). Separate pickers because
+         Android Chrome shows a Camera/Files chooser for image/*+pdf, but the
+         photo gallery picker for image/* alone (no capture attribute). -->
+    <input type="file" id="phGalleryInput" accept="image/*" hidden>
+    <input type="file" id="phPdfInput" accept="application/pdf" hidden>
 
     <div class="ph-alt">
       <button id="phUpload" class="ph-btn" type="button">
@@ -79,11 +82,124 @@
       <p id="phRecentEmpty" class="ph-empty" hidden>No receipts yet. Tap "Snap a receipt" to add your first one.</p>
     </div>
 
-    <button id="phFullApp" class="ph-foot" type="button">
-      <span>Make the report on your laptop</span>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
-    </button>
   </section>
+
+  <!-- PHONE: receipt detail sheet (photo, Edit, Rotate, Delete) -->
+  <div id="modalReceiptDetail" class="modal-overlay ph-sheet-overlay">
+    <div class="ph-sheet" role="dialog" aria-modal="true" aria-labelledby="mDetMerchant">
+      <div class="ph-sheet-grab" aria-hidden="true"></div>
+      <div class="ph-detail">
+        <button type="button" class="ph-detail-photo" id="mDetPhoto" aria-label="View receipt full size">
+          <img id="mDetImg" alt="">
+        </button>
+        <div class="ph-detail-text">
+          <h3 id="mDetMerchant">Receipt</h3>
+          <div class="ph-detail-amount" id="mDetAmount">$0.00</div>
+          <div class="ph-detail-meta" id="mDetMeta"></div>
+          <div class="ph-detail-notes" id="mDetNotes"></div>
+        </div>
+      </div>
+      <div class="ph-detail-actions">
+        <button type="button" class="ph-action primary" id="mDetEdit">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><span>Edit</span>
+        </button>
+        <button type="button" class="ph-action" id="mDetRotate">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/></svg><span>Rotate</span>
+        </button>
+        <button type="button" class="ph-action danger" id="mDetDelete">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg><span>Delete</span>
+        </button>
+      </div>
+      <button class="ph-sheet-cancel modal-close" type="button">Close</button>
+    </div>
+  </div>
+
+  <!-- PHONE: Ledger export sheet -->
+  <div id="modalExport" class="modal-overlay ph-sheet-overlay">
+    <div class="ph-sheet" role="dialog" aria-modal="true" aria-labelledby="mExpTitle">
+      <div class="ph-sheet-grab" aria-hidden="true"></div>
+      <h3 id="mExpTitle" class="ph-sheet-title">Export</h3>
+      <p class="ph-sheet-sub" id="mExpSub"></p>
+      <button id="mExpCopy" class="ph-sheet-option" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <span class="ph-sheet-text"><b>Copy for Excel</b><small>Paste into your company sheet</small></span>
+      </button>
+      <button id="mExpXlsx" class="ph-sheet-option" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+        <span class="ph-sheet-text"><b>Download Excel (.xlsx)</b><small id="mExpXlsxName"></small></span>
+      </button>
+      <button id="mExpCsv" class="ph-sheet-option" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg>
+        <span class="ph-sheet-text"><b>Download CSV</b><small>For accounting software</small></span>
+      </button>
+      <button class="ph-sheet-cancel modal-close" type="button">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Export backup: choose where the file goes (shown where the share sheet can take files) -->
+  <div id="modalBackup" class="modal-overlay ph-sheet-overlay">
+    <div class="ph-sheet" role="dialog" aria-modal="true" aria-labelledby="mBakTitle">
+      <div class="ph-sheet-grab" aria-hidden="true"></div>
+      <h3 id="mBakTitle" class="ph-sheet-title">Export backup</h3>
+      <p class="ph-sheet-sub" id="mBakSub">Save to a folder lets you pick Drive or Files and choose or make a folder. Download puts it in Downloads.</p>
+      <button id="mBakShare" class="ph-sheet-option" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v5M9.5 13.5h5"/></svg>
+        <span class="ph-sheet-text"><b>Save to a folder…</b><small>Drive, Files or another app</small></span>
+      </button>
+      <button id="mBakDownload" class="ph-sheet-option" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
+        <span class="ph-sheet-text"><b>Download</b><small id="mBakName"></small></span>
+      </button>
+      <button class="ph-sheet-cancel modal-close" type="button">Cancel</button>
+    </div>
+  </div>
+
+  <!-- PHONE: PDF report details sheet -->
+  <div id="modalPdfDetails" class="modal-overlay ph-sheet-overlay">
+    <div class="ph-sheet" role="dialog" aria-modal="true" aria-labelledby="mPdfDetTitle">
+      <div class="ph-sheet-grab" aria-hidden="true"></div>
+      <h3 id="mPdfDetTitle" class="ph-sheet-title">Report details</h3>
+      <div class="ph-field">
+        <label for="mPdfName">Your name</label>
+        <input type="text" id="mPdfName" placeholder="e.g. Alex Johnson" autocomplete="name">
+      </div>
+      <div class="ph-field">
+        <label for="mPdfDept">Department / cost center</label>
+        <input type="text" id="mPdfDept" placeholder="e.g. Sales">
+      </div>
+      <label class="ph-switch-row" for="mPdfCover">
+        <span class="ph-sheet-text"><b>Summary cover sheet</b><small>First page lists every receipt and the total</small></span>
+        <input type="checkbox" id="mPdfCover" class="sync-switch" role="switch">
+      </label>
+      <button class="ph-sheet-primary modal-close" type="button">Done</button>
+    </div>
+  </div>
+
+  <!-- PHONE: "Which receipts?" sheet. The shared date range card moves in here. -->
+  <div id="modalRange" class="modal-overlay ph-sheet-overlay">
+    <div class="ph-sheet" role="dialog" aria-modal="true" aria-labelledby="rangeSheetTitle">
+      <div class="ph-sheet-grab" aria-hidden="true"></div>
+      <h3 id="rangeSheetTitle" class="ph-sheet-title">Which receipts?</h3>
+      <div id="rangeSheetSlot" data-range-slot="sheet"></div>
+      <button class="ph-sheet-primary modal-close" type="button">Done</button>
+    </div>
+  </div>
+
+  <!-- PHONE HOME: "Upload photo or PDF" choice sheet -->
+  <div id="modalUploadChoice" class="modal-overlay ph-sheet-overlay">
+    <div class="ph-sheet" role="dialog" aria-modal="true" aria-labelledby="phSheetTitle">
+      <h3 id="phSheetTitle" class="ph-sheet-title">Upload a receipt</h3>
+      <button id="phPickGallery" class="ph-sheet-option" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        <span class="ph-sheet-text"><b>Photo gallery</b><small>Pick a photo you already took</small></span>
+      </button>
+      <button id="phPickPdf" class="ph-sheet-option" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>
+        <span class="ph-sheet-text"><b>PDF file</b><small>From your Files or Downloads</small></span>
+      </button>
+      <button class="ph-sheet-cancel modal-close" type="button">Cancel</button>
+    </div>
+  </div>
 
   <!-- App Header -->
   <header class="app-header">
@@ -139,7 +255,51 @@
 
     <!-- TAB 1: RECEIPTS VIEW -->
     <section id="tab-receipts" class="tab-view active">
-      <div class="view-header">
+      <!-- PHONE: compact receipts list (laptop keeps the grid below) -->
+      <div class="mt m-only" id="mReceipts">
+        <div class="mt-top">
+          <div>
+            <h1>Receipts</h1>
+            <div class="mt-sub" id="mRecSub">0 receipts</div>
+          </div>
+          <button type="button" class="mt-fab" id="mRecAdd" aria-label="Add receipt or PDF">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </div>
+        <div id="mRecTools">
+          <div class="mt-px">
+            <label class="mt-search">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+              <input type="search" id="mRecSearch" placeholder="Search merchant or note" aria-label="Search receipts" autocomplete="off">
+            </label>
+          </div>
+          <div class="mt-px">
+            <div class="mt-chips mt-cat-chips" id="mRecChips" role="group" aria-label="Filter by category">
+              <button type="button" class="mt-chip" data-cat="" aria-pressed="true">All</button>
+              <button type="button" class="mt-chip" data-cat="Meals" aria-pressed="false">Meals</button>
+              <button type="button" class="mt-chip" data-cat="Transportation" aria-pressed="false">Transportation</button>
+              <button type="button" class="mt-chip" data-cat="Lodging" aria-pressed="false">Lodging</button>
+              <button type="button" class="mt-chip" data-cat="Office Supplies" aria-pressed="false">Office</button>
+            </div>
+          </div>
+        </div>
+        <div id="mRecList"></div>
+        <div class="mt-empty" id="mRecNoMatch" hidden>
+          <b>No matching receipts</b>
+          <span>Try another search or category.</span>
+          <div class="mt-actions"><button type="button" class="mt-btn" id="mRecClear">Clear filters</button></div>
+        </div>
+        <div class="mt-empty" id="mRecEmpty" hidden>
+          <b>No receipts yet</b>
+          <span>Snap a paper receipt or upload a PDF to get started.</span>
+          <div class="mt-actions">
+            <button type="button" class="mt-btn primary" id="mRecEmptyAdd">Add receipt</button>
+            <button type="button" class="mt-btn js-demo-receipts">Add demo receipts</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="view-header d-only">
         <div class="view-title-group">
           <h2>All Receipts</h2>
           <p>Every receipt you've saved, newest first. To build a report, open the PDF tab and pick a date range.</p>
@@ -152,7 +312,7 @@
         </div>
       </div>
 
-      <div class="report-hero" id="reportHero">
+      <div class="report-hero d-only" id="reportHero">
         <div class="report-hero-copy">
           <span class="report-hero-label">All receipts total</span>
           <span class="report-hero-total" id="heroTotal">$0.00</span>
@@ -164,7 +324,7 @@
       </div>
 
       <!-- Empty State -->
-      <div id="emptyReceipts" class="empty-state" style="display: none;">
+      <div id="emptyReceipts" class="empty-state d-only" style="display: none;">
         <div class="empty-icon">🧾</div>
         <h3>No receipts yet</h3>
         <p>Snap a picture of a paper receipt from your phone, or upload a digital PDF (such as an Uber or airline receipt).</p>
@@ -172,14 +332,37 @@
       </div>
 
       <!-- Receipts Grid -->
-      <div id="receiptsGrid" class="receipts-grid"></div>
+      <div id="receiptsGrid" class="receipts-grid d-only"></div>
     </section>
 
     <!-- TAB 2: SPREADSHEET LEDGER -->
     <section id="tab-ledger" class="tab-view">
       <!-- The shared "Which receipts?" card moves here when this tab is open -->
-      <div class="range-slot" data-range-slot="tab-ledger"></div>
-      <div class="ledger-container">
+      <!-- PHONE: totals card, short rows, one Export button -->
+      <div class="mt m-only" id="mLedger">
+        <div class="mt-top">
+          <h1>Ledger</h1>
+          <button type="button" class="mt-btn" id="mLedExport" aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>Export
+          </button>
+        </div>
+        <div class="mt-px"><div class="js-range-chips"></div></div>
+        <div class="mt-px mt-led-card-wrap">
+          <div class="mt-card">
+            <div class="mt-led-label" id="mLedLabel"></div>
+            <div class="mt-led-total" id="mLedTotal">$0.00</div>
+            <div class="mt-bars" id="mLedBars"></div>
+          </div>
+        </div>
+        <div id="mLedRowsWrap">
+          <div class="mt-group-h"><span>Expenses</span><span>Tap a row to edit</span></div>
+          <div class="mt-list" id="mLedList"></div>
+        </div>
+        <div class="mt-empty" id="mLedEmpty" hidden></div>
+      </div>
+
+      <div class="range-slot d-only" data-range-slot="tab-ledger"></div>
+      <div class="ledger-container d-only">
         <div class="ledger-toolbar">
           <div class="ledger-stats">
             <div class="stat-box">
@@ -230,7 +413,56 @@
 
     <!-- TAB 3: PDF COMPILATION & PREVIEW -->
     <section id="tab-pdf" class="tab-view">
-      <div class="range-slot" data-range-slot="tab-pdf">
+      <!-- PHONE: range chip, layout tiles, details row, Create PDF, preview -->
+      <div class="mt m-only" id="mPdf">
+        <div class="mt-top">
+          <div>
+            <h1>Make report</h1>
+            <div class="mt-sub">Pick receipts, a layout, then create the PDF</div>
+          </div>
+        </div>
+        <div class="mt-px">
+          <div class="mt-label mt-label-first">Receipts</div>
+          <div class="js-range-chips"></div>
+          <div class="mt-label" id="mPdfLayoutLabel">Layout</div>
+          <div class="mt-tiles" id="mPdfTiles" role="radiogroup" aria-labelledby="mPdfLayoutLabel">
+            <button type="button" class="mt-tile" role="radio" data-layout="full" aria-checked="true">
+              <span class="mini mini-1" aria-hidden="true"><i></i></span>Full page
+            </button>
+            <button type="button" class="mt-tile" role="radio" data-layout="two_up" aria-checked="false">
+              <span class="mini mini-2" aria-hidden="true"><i></i><i></i></span>2 per page
+            </button>
+            <button type="button" class="mt-tile" role="radio" data-layout="grid" aria-checked="false">
+              <span class="mini mini-4" aria-hidden="true"><i></i><i></i><i></i><i></i></span>4 per page
+            </button>
+          </div>
+          <button type="button" class="mt-card mt-detail-row" id="mPdfDetails" aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a6.5 6.5 0 0 1 13 0"/></svg>
+            <span class="mt-row-t"><b id="mPdfWho">Add your name</b><small id="mPdfWhoSub">Name, department, cover sheet</small></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+          <button type="button" class="mt-big-btn" id="mPdfCreate">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
+            <span id="mPdfCreateLabel">Create PDF</span>
+          </button>
+          <div class="mt-label mt-label-row"><span>Preview</span><span id="mPdfPages"></span></div>
+          <div class="mt-card mt-preview-card">
+            <!-- The PDF preview panel moves in here on phones -->
+            <div id="mPdfPreviewSlot"></div>
+            <div class="mt-pager">
+              <button type="button" class="mt-pager-btn" id="mPdfPrev" aria-label="Previous page">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <span id="mPdfPageInd" aria-live="polite">Page 1 of 1</span>
+              <button type="button" class="mt-pager-btn" id="mPdfNext" aria-label="Next page">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="range-slot d-only" data-range-slot="tab-pdf">
       <div class="date-range-card" id="dateRangeCard">
         <div class="date-range-head">
           <span class="date-range-step">1</span>
@@ -260,7 +492,7 @@
       </div>
       </div>
 
-      <div class="pdf-layout-picker">
+      <div class="pdf-layout-picker d-only">
         <div class="form-group">
           <label id="pdfLayoutLabel">Receipt Layout on Pages</label>
           <div class="layout-options" role="radiogroup" aria-labelledby="pdfLayoutLabel">
@@ -309,7 +541,7 @@
         </div>
       </div>
 
-      <div class="pdf-view-layout">
+      <div class="pdf-view-layout d-only" id="pdfPreviewHome">
         <!-- Settings Column -->
         <div class="pdf-settings-panel">
           <h3 class="settings-section-title">PDF Compilation Options</h3>
@@ -356,9 +588,78 @@
 
     <!-- TAB 4: SETTINGS, CLOUD SYNC & BACKUP -->
     <section id="tab-settings" class="tab-view">
-      <div style="max-width: 700px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px;">
+      <!-- PHONE: Settings page. Grouped cards with section labels. The real Sync
+           controls (switch row and pairing area) move into #mSyncSlot on phones,
+           so every sync behavior is the same code as on the laptop. -->
+      <div class="mt m-only" id="mSettings">
+        <div class="mt-top"><h1>Settings</h1></div>
+        <div class="mt-px">
+          <h2 class="mt-section" id="mSecSync">Sync between devices</h2>
+          <div class="mt-card mt-group mt-sync" id="mSyncSlot" role="group" aria-labelledby="mSecSync"></div>
+
+          <h2 class="mt-section" id="mSecDetails">My details</h2>
+          <div class="mt-card mt-group" role="group" aria-labelledby="mSecDetails">
+            <label class="mt-li mt-li-field" for="mSetName">
+              <span class="mt-li-ic" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a6.5 6.5 0 0 1 13 0"/></svg></span>
+              <span class="mt-li-main"><span class="mt-li-label">Your name</span><input type="text" id="mSetName" placeholder="e.g. Alex Johnson" autocomplete="name"></span>
+            </label>
+            <label class="mt-li mt-li-field" for="mSetDept">
+              <span class="mt-li-ic" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1M10 21v-3h4v3"/></svg></span>
+              <span class="mt-li-main"><span class="mt-li-label">Department / cost center</span><input type="text" id="mSetDept" placeholder="e.g. Sales"></span>
+            </label>
+            <label class="mt-li" for="mSetCover">
+              <span class="mt-li-ic" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg></span>
+              <span class="mt-li-main"><b>Summary cover sheet</b><small>First PDF page lists every receipt and the total</small></span>
+              <input type="checkbox" id="mSetCover" class="sync-switch" role="switch">
+            </label>
+          </div>
+          <p class="mt-foot">Used on your PDF reports. You can also change these on the PDF tab.</p>
+
+          <h2 class="mt-section" id="mSecLook">Appearance</h2>
+          <div class="mt-card mt-group" role="group" aria-labelledby="mSecLook">
+            <label class="mt-li" for="mThemeToggle">
+              <span class="mt-li-ic" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span>
+              <span class="mt-li-main"><b>Dark mode</b><small>Easier on the eyes at night</small></span>
+              <input type="checkbox" id="mThemeToggle" class="sync-switch" role="switch">
+            </label>
+          </div>
+
+          <h2 class="mt-section" id="mSecData">Data</h2>
+          <div class="mt-card mt-group" role="group" aria-labelledby="mSecData">
+            <button type="button" class="mt-li" id="mSetExport">
+              <span class="mt-li-ic" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg></span>
+              <span class="mt-li-main"><b>Export backup</b><small>Save all receipts and reports to a file</small></span>
+              <svg class="mt-li-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            <button type="button" class="mt-li" id="mSetRestore">
+              <span class="mt-li-ic" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg></span>
+              <span class="mt-li-main"><b>Restore backup</b><small>Load a backup file you saved before</small></span>
+              <svg class="mt-li-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            <button type="button" class="mt-li js-demo-receipts" id="mSetDemo">
+              <span class="mt-li-ic" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/></svg></span>
+              <span class="mt-li-main"><b>Add demo receipts</b><small>Sample receipts to try the app</small></span>
+              <svg class="mt-li-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </div>
+
+          <h2 class="mt-section" id="mSecAbout">About</h2>
+          <div class="mt-card mt-group" role="group" aria-labelledby="mSecAbout">
+            <div class="mt-li mt-li-static">
+              <span class="mt-li-ic" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span>
+              <span class="mt-li-main"><b>Version</b></span>
+              <span class="mt-li-value" id="mAppVersion">v19</span>
+            </div>
+            <div class="mt-li mt-li-static">
+              <span class="mt-li-ic" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg></span>
+              <span class="mt-li-main"><b>Storage</b><small>Receipts are saved on this device</small></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="d-only" style="max-width: 700px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px;">
         <!-- Multi-Device Pairing Box -->
-        <div style="background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 24px;">
+        <div id="syncDeskHome" style="background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 24px;">
           <h3 style="font-size: 1.25rem;">📱 Multi-Device Sync</h3>
           <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 12px;">
             Send receipts between your phone and laptop.
@@ -366,6 +667,7 @@
 
           <!-- Sync on/off switch. Nothing connects to the relay until this is on. -->
           <label class="sync-toggle-row" for="toggleSync">
+            <span class="mt-li-ic m-icon" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/></svg></span>
             <span class="sync-toggle-text">
               <span class="sync-toggle-title">Sync between devices</span>
               <span id="syncToggleHint" class="sync-toggle-hint">Off. Nothing is sent anywhere.</span>
@@ -380,7 +682,8 @@
             <!-- Phone: scan the laptop's QR code -->
             <div class="sync-main sync-only-phone">
               <button id="btnScanLaptopQr" class="btn btn-primary sync-scan-big">
-                <span>📷 Scan laptop QR code</span>
+                <svg class="m-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg>
+                <span><span class="emo">📷</span> Scan laptop QR code</span>
               </button>
               <p class="sync-main-help">Turn on Sync on your laptop to show its QR code.</p>
             </div>
@@ -391,7 +694,7 @@
               <p class="sync-main-help sync-main-help-strong">On your phone, open ExpenseSnap &gt; Settings &gt; Sync, then scan this.</p>
             </div>
 
-            <p id="syncWarning" class="sync-warning">⚠️ Uses a public relay, not encrypted yet.</p>
+            <p id="syncWarning" class="sync-warning"><svg class="m-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg><span><span class="emo">⚠️</span> Uses a public relay, not encrypted yet.</span></p>
 
             <details id="syncOtherWays" class="sync-other">
               <summary>Other ways to connect</summary>
@@ -411,8 +714,8 @@
                   <button id="btnJoinRoom" class="btn btn-primary btn-sm">Join</button>
                 </div>
                 <div class="sync-other-actions">
-                  <button id="btnCopyPairLink" class="btn btn-secondary btn-sm"><span>📋 Copy sync link</span></button>
-                  <button id="btnNewRoomCode" class="btn btn-secondary btn-sm" title="Make a fresh room code">🔄 New room code</button>
+                  <button id="btnCopyPairLink" class="btn btn-secondary btn-sm"><svg class="m-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg><span><span class="emo">📋</span> Copy sync link</span></button>
+                  <button id="btnNewRoomCode" class="btn btn-secondary btn-sm" title="Make a fresh room code"><svg class="m-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/></svg><span class="emo">🔄</span> New room code</button>
                 </div>
               </div>
             </details>
@@ -431,7 +734,7 @@
             </button>
             <label class="btn btn-secondary" style="cursor: pointer;">
               <span>📥 Restore Backup</span>
-              <input type="file" id="inputRestoreBackup" accept=".json" style="display: none;">
+              <input type="file" id="inputRestoreBackup" accept=".json,application/json" style="display: none;">
             </label>
           </div>
         </div>
@@ -462,7 +765,7 @@
     </button>
     <button class="mobile-nav-item" data-tab="tab-settings">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
-      <span>Sync</span>
+      <span class="nav-label-desk">Sync</span><span class="nav-label-phone">Settings</span>
     </button>
   </nav>
 
@@ -585,11 +888,11 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <!-- Application Logic Modules -->
-  <script src="js/store.js?v=13"></script>
-  <script src="js/receipt-manager.js?v=13"></script>
-  <script src="js/pdf-compiler.js?v=13"></script>
-  <script src="js/spreadsheet-helper.js?v=13"></script>
-  <script src="js/firebase-config.js?v=13"></script>
-  <script src="js/app.js?v=13"></script>
+  <script src="js/store.js?v=19"></script>
+  <script src="js/receipt-manager.js?v=19"></script>
+  <script src="js/pdf-compiler.js?v=19"></script>
+  <script src="js/spreadsheet-helper.js?v=19"></script>
+  <script src="js/firebase-config.js?v=19"></script>
+  <script src="js/app.js?v=19"></script>
 </body>
 </html>

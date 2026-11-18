@@ -106,6 +106,8 @@ class ExpenseApp {
 
   applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
+    const phoneToggle = document.getElementById('mThemeToggle');
+    if (phoneToggle) phoneToggle.checked = theme === 'dark';
     const icon = document.getElementById('themeIcon');
     if (icon) {
       icon.textContent = theme === 'dark' ? '☀️' : '🌙';
@@ -281,7 +283,9 @@ class ExpenseApp {
     document.querySelectorAll('[data-tab]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const tabId = btn.getAttribute('data-tab');
-        this.switchTab(tabId);
+        // From the phone home screen, a tab opens the full app on that tab
+        if (document.documentElement.classList.contains('show-home')) this.showFullApp(tabId);
+        else this.switchTab(tabId);
       });
     });
 
@@ -562,15 +566,12 @@ class ExpenseApp {
     });
 
     // Backup & Restore
-    document.getElementById('btnExportBackup').addEventListener('click', async () => {
-      const backupJson = await window.store.exportFullBackup();
-      const blob = new Blob([backupJson], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `ExpenseSnap_Backup_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-      this.showToast('Backup file downloaded', 'success');
+    document.getElementById('btnExportBackup').addEventListener('click', () => this.exportBackup());
+    document.getElementById('mBakShare').addEventListener('click', () => this._shareBackup());
+    document.getElementById('mBakDownload').addEventListener('click', () => {
+      const file = this._pendingBackup;
+      this.closeModal('modalBackup');
+      if (file) this._downloadBackup(file);
     });
 
     document.getElementById('inputRestoreBackup').addEventListener('change', async (e) => {
@@ -589,7 +590,87 @@ class ExpenseApp {
 
   }
 
+  // --- Export backup: let the user choose where the file goes ---
+  _backupFileName() {
+    return `ExpenseSnap-backup-${this._localISO(new Date())}.json`;
+  }
+
+  async exportBackup() {
+    const name = this._backupFileName();
+    // 1) Save As dialog (Chrome/Edge on laptops, Chrome 132+ on Android).
+    //    Ask for the file first, while the click still counts as a user gesture.
+    if (typeof window.showSaveFilePicker === 'function') {
+      let handle;
+      try {
+        handle = await window.showSaveFilePicker({
+          suggestedName: name,
+          id: 'expensesnap-backup',
+          types: [{ description: 'ExpenseSnap backup', accept: { 'application/json': ['.json'] } }],
+        });
+      } catch (err) {
+        if (err && err.name === 'AbortError') return; // cancelled: say nothing
+        handle = null; // picker blocked: fall through to the other ways
+      }
+      if (handle) {
+        try {
+          const json = await window.store.exportFullBackup();
+          const writable = await handle.createWritable();
+          await writable.write(new Blob([json], { type: 'application/json' }));
+          await writable.close();
+          this._backupDone(`Backup saved as ${handle.name || name}`);
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;
+          this.showToast('Could not save the backup: ' + (err && err.message || err), 'error');
+        }
+        return;
+      }
+    }
+    const json = await window.store.exportFullBackup();
+    const file = new File([json], name, { type: 'application/json' });
+    // 2) Share sheet with a file (iPhone, older Android): offer "Save to a folder…" or "Download".
+    let canShareFile = false;
+    try { canShareFile = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] })); } catch (e) { canShareFile = false; }
+    if (canShareFile) {
+      this._pendingBackup = file;
+      document.getElementById('mBakName').textContent = name;
+      this.openModal('modalBackup');
+      return;
+    }
+    // 3) Plain download.
+    this._downloadBackup(file);
+  }
+
+  async _shareBackup() {
+    const file = this._pendingBackup;
+    if (!file) return;
+    try {
+      await navigator.share({ files: [file], title: file.name });
+      this.closeModal('modalBackup');
+      this._backupDone('Backup sent to the app you picked');
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // closed the share sheet: stay here
+      this.showToast('Could not share the backup. Try Download instead.', 'error');
+    }
+  }
+
+  _downloadBackup(file) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file);
+    a.download = file.name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    this._backupDone('Backup file downloaded');
+  }
+
+  _backupDone(message) {
+    try { localStorage.setItem('expensesnap_lastBackupAt', new Date().toISOString()); } catch (e) { /* private mode */ }
+    this.showToast(message, 'success');
+  }
+
   switchTab(tabId) {
+    if (document.documentElement.classList.contains('is-phone') && this.activeTab !== tabId) {
+      window.scrollTo(0, 0);
+    }
     this.activeTab = tabId;
     
     // Update Desktop Tabs
@@ -621,6 +702,7 @@ class ExpenseApp {
     // If Settings tab selected, re-render QR code
     if (tabId === 'tab-settings') {
       this.renderQrCode();
+      this.renderPhoneSettings();
     }
   }
 
@@ -651,6 +733,7 @@ class ExpenseApp {
       return;
     }
     modal.classList.remove('open');
+    if (modal.id === 'modalRange') this._onRangeSheetClosed();
     if (modal.id === 'modalAddReceipt') {
       this.editingReceiptId = null;
       this.stagedReceiptData = null;
@@ -754,6 +837,7 @@ class ExpenseApp {
       mq.addEventListener('change', () => {
         root.classList.toggle('is-phone', mq.matches);
         if (!mq.matches) root.classList.remove('show-home');
+        this.applyPhoneLayout();
       });
     }
     // index.html already added these before the first paint; keep them in sync.
@@ -761,11 +845,22 @@ class ExpenseApp {
     if (this.isPhone()) this.showPhoneHome();
 
     const cam = document.getElementById('phCameraInput');
-    const upload = document.getElementById('phUploadInput');
+    const gallery = document.getElementById('phGalleryInput');
+    const pdf = document.getElementById('phPdfInput');
     document.getElementById('phSnap').addEventListener('click', () => cam.click());
-    document.getElementById('phUpload').addEventListener('click', () => upload.click());
+    // "Upload photo or PDF" asks which: the photo gallery or a PDF from Files.
+    // Each picker is opened right inside the tap so the browser allows it.
+    document.getElementById('phUpload').addEventListener('click', () => this.openModal('modalUploadChoice'));
+    document.getElementById('phPickGallery').addEventListener('click', () => {
+      gallery.click();
+      this.closeModal('modalUploadChoice');
+    });
+    document.getElementById('phPickPdf').addEventListener('click', () => {
+      pdf.click();
+      this.closeModal('modalUploadChoice');
+    });
     // Photos and PDFs both go through the same add form (PDFs use the PDF path)
-    [cam, upload].forEach(input => {
+    [cam, gallery, pdf].forEach(input => {
       input.addEventListener('change', async () => {
         const file = input.files && input.files[0];
         input.value = '';
@@ -776,18 +871,217 @@ class ExpenseApp {
     });
     document.getElementById('phNoReceipt').addEventListener('click', () => this.openNoReceiptForm());
     document.getElementById('phSettings').addEventListener('click', () => this.showFullApp('tab-settings'));
-    document.getElementById('phFullApp').addEventListener('click', () => this.showFullApp('tab-receipts'));
     document.getElementById('navHome').addEventListener('click', () => this.showPhoneHome());
+    this.setupPhoneTabs();
+    this.setupPhoneReceipts();
+    this.setupPhoneLedger();
+    this.setupPhonePdf();
   }
+
+  // ---- Phone versions of Receipts, Ledger, PDF and Settings ----
+  // These are extra phone-only blocks (.m-only). They call the same code as
+  // the laptop controls, so saving, exports and the PDF work exactly the same.
+  setupPhoneTabs() {
+    const themeToggle = document.getElementById('mThemeToggle');
+    themeToggle.checked = document.documentElement.getAttribute('data-theme') === 'dark';
+    themeToggle.addEventListener('change', () => {
+      const next = themeToggle.checked ? 'dark' : 'light';
+      this.applyTheme(next);
+      localStorage.setItem('expensesnap_theme', next);
+    });
+    document.querySelectorAll('.js-demo-receipts').forEach(btn =>
+      btn.addEventListener('click', () => this.loadSampleReceipts()));
+    this.setupPhoneSettings();
+
+    // Range chip rows (Ledger and PDF): the first chip opens the range sheet,
+    // the month chips are one-tap shortcuts.
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.js-range-chips .js-change-dates')) {
+        this.openCustomRange();
+        return;
+      }
+      const chip = e.target.closest('.js-range-chips [data-preset], .js-range-chips [data-month]');
+      if (!chip) return;
+      // Run the laptop card's own buttons, so the phone filters exactly the same way
+      const card = document.getElementById('dateRangeCard');
+      if (chip.dataset.preset) {
+        const btn = card.querySelector(`[data-preset="${chip.dataset.preset}"]`);
+        if (btn) btn.click();
+      } else if (chip.dataset.month) {
+        const btn = card.querySelector(`[data-month="${chip.dataset.month}"]`);
+        if (btn) btn.click();
+        else { this.dateRange = { preset: 'month', month: chip.dataset.month }; this._onRangeChanged(); }
+      }
+    });
+    // Editing From/To in the sheet counts as applying a custom range
+    ['rangeFrom', 'rangeTo'].forEach(id => document.getElementById(id).addEventListener('change', () => {
+      if (this._customSheet) this._customSheet.edited = true;
+    }));
+    this.applyPhoneLayout();
+  }
+
+  // "Change dates": open the From/To sheet starting from the range shown now.
+  // If the sheet is closed without changing the dates, the previous choice
+  // (preset or month) comes back, so nothing changes by just looking.
+  openCustomRange() {
+    const prev = { ...this.dateRange };
+    if (prev.preset !== 'custom') {
+      const r = this._computeRange();
+      const today = this._localISO(new Date());
+      document.getElementById('rangeFrom').value = r.from || today;
+      document.getElementById('rangeTo').value = r.to || today;
+    }
+    this._customSheet = { prev, edited: false };
+    const btn = document.querySelector('#dateRangeCard [data-preset="custom"]');
+    if (btn) btn.click();
+    this.openRangeSheet();
+  }
+
+  _onRangeSheetClosed() {
+    const sheet = this._customSheet;
+    this._customSheet = null;
+    if (sheet && !sheet.edited && sheet.prev.preset !== 'custom' && this.dateRange.preset === 'custom') {
+      this.dateRange = sheet.prev;
+      this._onRangeChanged();
+    }
+  }
+
+  // ---- Phone Settings: My details, Data and About rows ----
+  // My details write straight into the PDF fields (same saving and preview
+  // refresh as typing there); Data rows press the existing backup controls.
+  setupPhoneSettings() {
+    const pairs = [['mSetName', 'pdfSubmitterName'], ['mSetDept', 'pdfDepartment']];
+    pairs.forEach(([phoneId, deskId]) => {
+      document.getElementById(phoneId).addEventListener('input', (e) => {
+        const target = document.getElementById(deskId);
+        target.value = e.target.value;
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+        this.renderPhonePdf();
+      });
+    });
+    document.getElementById('mSetCover').addEventListener('change', (e) => {
+      const target = document.getElementById('chkAddCover');
+      target.checked = e.target.checked;
+      target.dispatchEvent(new Event('change', { bubbles: true }));
+      this.renderPhonePdf();
+    });
+    document.getElementById('mSetExport').addEventListener('click', () => document.getElementById('btnExportBackup').click());
+    document.getElementById('mSetRestore').addEventListener('click', () => document.getElementById('inputRestoreBackup').click());
+    this.renderPhoneSettings();
+  }
+
+  // Fill My details from the PDF fields (they may have changed on the PDF tab)
+  renderPhoneSettings() {
+    const name = document.getElementById('mSetName');
+    if (!name) return;
+    name.value = document.getElementById('pdfSubmitterName').value;
+    document.getElementById('mSetDept').value = document.getElementById('pdfDepartment').value;
+    document.getElementById('mSetCover').checked = document.getElementById('chkAddCover').checked;
+  }
+
+  // Moves shared pieces between the laptop and phone layouts when the
+  // phone rule starts or stops matching.
+  applyPhoneLayout() {
+    const phone = document.documentElement.classList.contains('is-phone');
+    // Sync controls: the real switch row and pairing area live in the phone
+    // Settings card on phones, and in the laptop's Sync box otherwise.
+    const syncRow = document.querySelector('label.sync-toggle-row[for="toggleSync"]');
+    const pairing = document.getElementById('syncPairingArea');
+    const syncPhone = document.getElementById('mSyncSlot');
+    const syncDesk = document.getElementById('syncDeskHome');
+    if (syncRow && pairing && syncPhone && syncDesk) {
+      const target = phone ? syncPhone : syncDesk;
+      if (syncRow.parentElement !== target) { target.appendChild(syncRow); target.appendChild(pairing); }
+    }
+    // Shorter room-code hint on phones so it is never cut off
+    const join = document.getElementById('inputJoinRoom');
+    if (join) {
+      if (!join.dataset.deskPlaceholder) join.dataset.deskPlaceholder = join.placeholder;
+      join.placeholder = phone ? 'e.g. EXP-W7K9' : join.dataset.deskPlaceholder;
+      if (phone) join.setAttribute('aria-label', 'Room code to join');
+      else join.removeAttribute('aria-label');
+    }
+    const preview = document.getElementById('pdfPreviewPanel');
+    const phoneSlot = document.getElementById('mPdfPreviewSlot');
+    const deskSlot = document.getElementById('pdfPreviewHome');
+    if (preview && phoneSlot && deskSlot) {
+      const target = phone ? phoneSlot : deskSlot;
+      if (preview.parentElement !== target) target.appendChild(preview);
+    }
+    if (!phone) {
+      // Put the range card back into the open laptop tab
+      const slot = document.querySelector(`[data-range-slot="${this.activeTab}"]`);
+      const rangeCard = document.getElementById('dateRangeCard');
+      if (slot && rangeCard && rangeCard.parentElement !== slot) slot.appendChild(rangeCard);
+    }
+  }
+
+  openRangeSheet() {
+    const rangeCard = document.getElementById('dateRangeCard');
+    const slot = document.getElementById('rangeSheetSlot');
+    if (rangeCard && slot && rangeCard.parentElement !== slot) slot.appendChild(rangeCard);
+    this.openModal('modalRange');
+  }
+
+  _rangeChipLabel() {
+    const { preset, month } = this.dateRange;
+    const names = { this_month: 'This month', last_month: 'Last month', last_90: 'Last 90 days' };
+    if (names[preset]) return names[preset];
+    if (preset === 'month' && month) return this._monthName(month, 'short');
+    return this._computeRange().label;
+  }
+
+  // Presets are visible right on the tab (no sheet needed): This month,
+  // Last month, Last 90 days, Custom; then the months that have receipts.
+  renderPhoneRangeChips() {
+    const rows = document.querySelectorAll('.js-range-chips');
+    if (!rows.length) return;
+    const range = this._computeRange();
+    const n = this._receiptsInRange(range).length;
+    const counts = new Map();
+    this.allReceipts.forEach(r => {
+      if (r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date)) {
+        const ym = r.date.slice(0, 7);
+        counts.set(ym, (counts.get(ym) || 0) + 1);
+      }
+    });
+    const { preset, month } = this.dateRange;
+    // Custom has no chip: the range line's "Change dates" link sets it, and
+    // then no preset chip is highlighted.
+    const presets = [['this_month', 'This month'], ['last_month', 'Last month'], ['last_90', 'Last 90 days']];
+    const presetHtml = presets.map(([key, label]) =>
+      `<button type="button" class="mt-chip" data-preset="${key}" aria-pressed="${preset === key}"><span>${label}</span></button>`).join('');
+    const months = [...counts.keys()].sort().reverse().slice(0, 3);
+    const monthHtml = months.map(ym => {
+      const on = preset === 'month' && month === ym;
+      return `<button type="button" class="mt-chip" data-month="${ym}" aria-pressed="${on}"><span>${this._escape(this._monthName(ym, 'short'))}</span><span class="n">${counts.get(ym)}</span></button>`;
+    }).join('');
+    // One line, always shown: the exact dates, how many receipts, and Change dates
+    const dates = range.from && range.to ? this._rangeLabel(range.from, range.to) : range.label;
+    const rangeLine = `<div class="mt-range-line"><span class="mt-range-text"><span class="js-range-dates">${this._escape(dates)}</span> · <span class="js-range-count">${n} ${n === 1 ? 'receipt' : 'receipts'}</span></span><button type="button" class="mt-link js-change-dates" aria-haspopup="dialog">Change dates</button></div>`;
+    rows.forEach(row => {
+      row.innerHTML =
+        `<div class="mt-chips" role="group" aria-label="Date range">${presetHtml}</div>` +
+        (monthHtml ? `<div class="mt-chips mt-chips-months" role="group" aria-label="Months with receipts">${monthHtml}</div>` : '') +
+        rangeLine;
+    });
+  }
+
 
   showPhoneHome() {
     document.documentElement.classList.add('show-home');
+    // Bottom bar: Home is the active tab while home is showing
+    document.querySelectorAll('.mobile-nav-bar .mobile-nav-item').forEach(btn => {
+      btn.classList.toggle('active', btn.id === 'navHome');
+    });
     this.renderPhoneHome();
     window.scrollTo(0, 0);
   }
 
   showFullApp(tabId = 'tab-receipts') {
     document.documentElement.classList.remove('show-home');
+    const home = document.getElementById('navHome');
+    if (home) home.classList.remove('active');
     this.switchTab(tabId);
     window.scrollTo(0, 0);
   }
@@ -823,7 +1117,7 @@ class ExpenseApp {
   }
 
   _money(n) {
-    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return '$' + (parseFloat(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   async handleFileUpload(file) {
@@ -885,6 +1179,7 @@ class ExpenseApp {
 
     // 4. Render Receipts Grid
     this.renderReceiptsGrid();
+    this.renderPhoneReceipts();
 
     // 5. Render Spreadsheet Ledger Table
     this.renderLedgerTable();
@@ -956,15 +1251,7 @@ class ExpenseApp {
       // Quick Rotate
       card.querySelector('.btn-quick-rotate').addEventListener('click', async (e) => {
         e.stopPropagation();
-        const currentRot = (r.rotation || 0) + 90;
-        const opt = await window.receiptManager.optimizeImage(r.dataUrl, 90, r.enhanceContrast);
-        const updated = await window.store.updateReceipt(r.id, {
-          rotation: currentRot % 360,
-          dataUrl: opt.dataUrl,
-          thumbnailDataUrl: opt.thumbnailUrl
-        });
-        if (updated) window.cloudSyncManager.broadcastReceiptUpdated(updated);
-        this.showToast('Receipt rotated 90°', 'info');
+        await this.rotateReceipt(r);
       });
 
       // Edit Details
@@ -976,15 +1263,257 @@ class ExpenseApp {
       // Delete
       card.querySelector('.btn-delete').addEventListener('click', async (e) => {
         e.stopPropagation();
-        if (confirm(`Delete receipt from ${r.merchant}?`)) {
-          await window.store.deleteReceipt(r.id);
-          window.cloudSyncManager.broadcastReceiptDeleted(r.id);
-          this.showToast('Receipt removed', 'info');
-        }
+        await this.deleteReceiptWithConfirm(r);
       });
 
       grid.appendChild(card);
     });
+  }
+
+  // Rotate a receipt photo 90° (used by the laptop grid and the phone detail sheet)
+  async rotateReceipt(r) {
+    const currentRot = (r.rotation || 0) + 90;
+    const opt = await window.receiptManager.optimizeImage(r.dataUrl, 90, r.enhanceContrast);
+    const updated = await window.store.updateReceipt(r.id, {
+      rotation: currentRot % 360,
+      dataUrl: opt.dataUrl,
+      thumbnailDataUrl: opt.thumbnailUrl
+    });
+    if (updated) window.cloudSyncManager.broadcastReceiptUpdated(updated);
+    this.showToast('Receipt rotated 90°', 'info');
+    return updated;
+  }
+
+  async deleteReceiptWithConfirm(r) {
+    if (!confirm(`Delete receipt from ${r.merchant}?`)) return false;
+    await window.store.deleteReceipt(r.id);
+    window.cloudSyncManager.broadcastReceiptDeleted(r.id);
+    this.showToast('Receipt removed', 'info');
+    return true;
+  }
+
+  _openZoom(r) {
+    document.getElementById('zoomTitle').textContent = `${r.merchant} - $${(parseFloat(r.amount) || 0).toFixed(2)}`;
+    document.getElementById('zoomImg').src = r.dataUrl || r.thumbnailDataUrl;
+    this.openModal('modalZoom');
+  }
+
+  _shortDate(iso) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? this._prettyDate(iso, false) : 'No date';
+  }
+
+  // ---- Phone Receipts: search, category chips, list grouped by month ----
+  setupPhoneReceipts() {
+    this.phoneRecFilter = { q: '', cat: '' };
+    const search = document.getElementById('mRecSearch');
+    search.addEventListener('input', () => {
+      this.phoneRecFilter.q = search.value;
+      this.renderPhoneReceipts();
+    });
+    document.getElementById('mRecChips').addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-cat]');
+      if (!chip) return;
+      this.phoneRecFilter.cat = chip.dataset.cat;
+      this.renderPhoneReceipts();
+    });
+    document.getElementById('mRecClear').addEventListener('click', () => {
+      search.value = '';
+      this.phoneRecFilter = { q: '', cat: '' };
+      this.renderPhoneReceipts();
+    });
+    document.getElementById('mRecAdd').addEventListener('click', () => this.openAddModal());
+    document.getElementById('mRecEmptyAdd').addEventListener('click', () => this.openAddModal());
+    document.getElementById('mRecList').addEventListener('click', (e) => {
+      const row = e.target.closest('[data-id]');
+      if (!row) return;
+      const r = this.allReceipts.find(x => String(x.id) === row.dataset.id);
+      if (r) this.openReceiptDetail(r);
+    });
+
+    // Detail sheet actions
+    document.getElementById('mDetPhoto').addEventListener('click', () => {
+      const r = this._detailReceipt();
+      if (r) this._openZoom(r);
+    });
+    document.getElementById('mDetEdit').addEventListener('click', () => {
+      const r = this._detailReceipt();
+      if (!r) return;
+      this.closeModal('modalReceiptDetail');
+      this.openEditReceipt(r, 'Edit Receipt');
+    });
+    document.getElementById('mDetRotate').addEventListener('click', async (e) => {
+      const r = this._detailReceipt();
+      if (!r) return;
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      try {
+        const updated = await this.rotateReceipt(r);
+        if (updated) this._fillReceiptDetail(updated);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+    document.getElementById('mDetDelete').addEventListener('click', async () => {
+      const r = this._detailReceipt();
+      if (r && await this.deleteReceiptWithConfirm(r)) this.closeModal('modalReceiptDetail');
+    });
+  }
+
+  _detailReceipt() {
+    return this.allReceipts.find(x => x.id === this.detailReceiptId) || null;
+  }
+
+  openReceiptDetail(r) {
+    this.detailReceiptId = r.id;
+    this._fillReceiptDetail(r);
+    this.openModal('modalReceiptDetail');
+  }
+
+  _fillReceiptDetail(r) {
+    const labels = window.expenseLabels;
+    document.getElementById('mDetImg').src = r.thumbnailDataUrl || r.dataUrl || '';
+    document.getElementById('mDetImg').alt = `Receipt from ${r.merchant || 'unknown merchant'}`;
+    document.getElementById('mDetMerchant').textContent = r.merchant || 'Receipt';
+    document.getElementById('mDetAmount').textContent = this._money(r.amount);
+    let when = 'No date';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(r.date || '')) {
+      const [y, m, d] = r.date.split('-').map(Number);
+      when = new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    const bits = [labels.displayCategory(r.category)];
+    if (r.paymentMethod) bits.push(labels.displayPayment ? labels.displayPayment(r.paymentMethod) : r.paymentMethod);
+    if (r.type === 'pdf') bits.push('PDF');
+    document.getElementById('mDetMeta').innerHTML = `${this._escape(when)}<br>${this._escape(bits.join(' · '))}`;
+    document.getElementById('mDetNotes').textContent = r.notes || '';
+  }
+
+  renderPhoneReceipts() {
+    const list = document.getElementById('mRecList');
+    if (!list) return;
+    const labels = window.expenseLabels;
+    const all = this.currentReceipts || [];
+    const total = all.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    document.getElementById('mRecSub').innerHTML = all.length
+      ? `${all.length} ${all.length === 1 ? 'receipt' : 'receipts'} · <span class="mt-money">${this._money(total)}</span>`
+      : 'Nothing saved yet';
+
+    const { q, cat } = this.phoneRecFilter || { q: '', cat: '' };
+    document.querySelectorAll('#mRecChips [data-cat]').forEach(chip =>
+      chip.setAttribute('aria-pressed', String(chip.dataset.cat === cat)));
+
+    const needle = q.trim().toLowerCase();
+    const shown = all.filter(r => {
+      if (cat && labels.displayCategory(r.category) !== cat) return false;
+      if (!needle) return true;
+      return [r.merchant, r.notes, labels.displayCategory(r.category), (parseFloat(r.amount) || 0).toFixed(2)]
+        .some(v => String(v || '').toLowerCase().includes(needle));
+    });
+
+    document.getElementById('mRecTools').hidden = all.length === 0;
+    document.getElementById('mRecEmpty').hidden = all.length !== 0;
+    document.getElementById('mRecNoMatch').hidden = !(all.length && !shown.length);
+
+    // Group by month, newest first (the list is already newest first)
+    const groups = [];
+    shown.forEach(r => {
+      const key = /^\d{4}-\d{2}/.test(r.date || '') ? r.date.slice(0, 7) : '';
+      let g = groups.find(x => x.key === key);
+      if (!g) groups.push(g = { key, items: [] });
+      g.items.push(r);
+    });
+    list.innerHTML = groups.map(g => {
+      const sum = g.items.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+      const rows = g.items.map(r => {
+        const meta = [this._shortDate(r.date), labels.displayCategory(r.category)];
+        if (r.notes) meta.push(r.notes);
+        else if (r.type === 'pdf') meta.push('PDF');
+        return `<button type="button" class="mt-row" data-id="${this._escape(String(r.id))}" aria-label="${this._escape(`${r.merchant}, ${this._money(r.amount)}, ${this._shortDate(r.date)}`)}">` +
+          `<img class="mt-thumb" src="${r.thumbnailDataUrl || r.dataUrl || ''}" alt="" loading="lazy">` +
+          `<span class="mt-row-t"><b>${this._escape(r.merchant || 'Receipt')}</b><small>${this._escape(meta.join(' · '))}</small></span>` +
+          `<span class="mt-money">${this._money(r.amount)}</span></button>`;
+      }).join('');
+      return `<div class="mt-group-h"><span>${this._escape(g.key ? this._monthName(g.key) : 'No date')}</span><span>${g.items.length} · ${this._money(sum)}</span></div><div class="mt-list">${rows}</div>`;
+    }).join('');
+
+    // Keep an open detail sheet in step with edits made elsewhere (e.g. sync)
+    if (this.detailReceiptId && document.getElementById('modalReceiptDetail').classList.contains('open')) {
+      const r = this._detailReceipt();
+      if (r) this._fillReceiptDetail(r);
+      else this.closeModal('modalReceiptDetail');
+    }
+  }
+
+  // ---- Phone Ledger: totals card, category breakdown, short rows ----
+  setupPhoneLedger() {
+    document.getElementById('mLedExport').addEventListener('click', () => {
+      const range = this._computeRange();
+      const rows = this._receiptsInRange(range);
+      const total = rows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+      document.getElementById('mExpTitle').textContent = `Export ${rows.length} ${rows.length === 1 ? 'receipt' : 'receipts'}`;
+      document.getElementById('mExpSub').textContent = `${range.label} · ${this._money(total)}`;
+      document.getElementById('mExpXlsxName').textContent = `${this._exportMeta(range).fileBase}.xlsx`;
+      this.openModal('modalExport');
+    });
+    // The sheet runs the same export code as the laptop buttons
+    [['mExpCopy', 'btnCopyExcel'], ['mExpXlsx', 'btnExportXlsx'], ['mExpCsv', 'btnExportCsv']].forEach(([phoneId, deskId]) => {
+      document.getElementById(phoneId).addEventListener('click', () => {
+        this.closeModal('modalExport');
+        document.getElementById(deskId).click();
+      });
+    });
+    document.getElementById('mLedList').addEventListener('click', (e) => {
+      const row = e.target.closest('[data-id]');
+      if (!row) return;
+      const r = this.allReceipts.find(x => String(x.id) === row.dataset.id);
+      if (r) this.openEditReceipt(r, 'Edit Receipt');
+    });
+  }
+
+  renderPhoneLedger(range, rows) {
+    const list = document.getElementById('mLedList');
+    if (!list) return;
+    const labels = window.expenseLabels;
+    const total = rows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    document.getElementById('mLedLabel').textContent = `${range.label} · ${rows.length} ${rows.length === 1 ? 'receipt' : 'receipts'}`;
+    document.getElementById('mLedTotal').textContent = this._money(total);
+    document.getElementById('mLedExport').disabled = rows.length === 0;
+
+    const byCat = new Map();
+    rows.forEach(r => {
+      const c = labels.displayCategory(r.category);
+      byCat.set(c, (byCat.get(c) || 0) + (parseFloat(r.amount) || 0));
+    });
+    const cats = [...byCat.entries()].sort((a, b) => b[1] - a[1]);
+    const max = cats.length ? cats[0][1] : 0;
+    document.getElementById('mLedBars').innerHTML = cats.map(([c, amt]) => {
+      const pct = max > 0 ? Math.max(2, Math.round((amt / max) * 100)) : 0;
+      return `<span>${this._escape(c)}</span><span class="bar" aria-hidden="true"><i style="width:${pct}%"></i></span><span class="amt">${this._money(amt)}</span>`;
+    }).join('');
+
+    const empty = document.getElementById('mLedEmpty');
+    document.getElementById('mLedRowsWrap').hidden = rows.length === 0;
+    empty.hidden = rows.length !== 0;
+    if (!rows.length) {
+      empty.innerHTML = this.allReceipts.length === 0
+        ? '<b>No receipts yet</b><span>Add receipts and they show up here as a spreadsheet.</span>'
+        : `<b>Nothing in ${this._escape(range.label)}</b><span>Pick another range above.</span>`;
+    }
+
+    // Newest first on the phone; exports stay oldest first
+    list.innerHTML = [...rows].reverse().map(r => {
+      let m = '', d = '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(r.date || '')) {
+        const [y, mo, da] = r.date.split('-').map(Number);
+        m = new Date(y, mo - 1, da).toLocaleDateString('en-US', { month: 'short' });
+        d = String(da);
+      }
+      const meta = [labels.displayCategory(r.category), labels.displayPayment(r.paymentMethod)];
+      if (r.notes) meta.push(r.notes);
+      return `<button type="button" class="mt-row" data-id="${this._escape(String(r.id))}" aria-label="${this._escape(`Edit ${r.merchant}, ${this._money(r.amount)}`)}">` +
+        `<span class="mt-date" aria-hidden="true"><span class="m" style="display:block">${m}</span><span class="d" style="display:block">${d || '–'}</span></span>` +
+        `<span class="mt-row-t"><b>${this._escape(r.merchant || 'Receipt')}</b><small>${this._escape(meta.join(' · '))}</small></span>` +
+        `<span class="mt-money">${this._money(r.amount)}</span></button>`;
+    }).join('');
   }
 
   renderLedgerTable() {
@@ -994,6 +1523,7 @@ class ExpenseApp {
     // Same date range as the PDF tab, oldest first
     const range = this._computeRange();
     const rows = this._receiptsInRange(range);
+    this.renderPhoneLedger(range, rows);
     const total = rows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
     document.getElementById('ledgerCount').textContent = rows.length;
     document.getElementById('ledgerTotal').textContent = `$${total.toFixed(2)}`;
@@ -1171,6 +1701,7 @@ class ExpenseApp {
         if (indicator) indicator.textContent = 'No receipts in this date range';
         document.getElementById('btnPrevPage').disabled = true;
         document.getElementById('btnNextPage').disabled = true;
+        this._syncPhonePager();
         return;
       }
 
@@ -1278,6 +1809,7 @@ class ExpenseApp {
     document.getElementById('previewPageIndicator').textContent = `Page ${pageNum} of ${this.previewTotalPages}`;
     document.getElementById('btnPrevPage').disabled = pageNum <= 1;
     document.getElementById('btnNextPage').disabled = pageNum >= this.previewTotalPages;
+    this._syncPhonePager();
   }
 
   async loadSampleReceipts() {
@@ -1620,6 +2152,79 @@ class ExpenseApp {
         `<span class="range-summary-label">${this._escape(range.label)}</span>`;
       compileBtn.disabled = false;
     }
+    this.renderPhoneRangeChips();
+    this.renderPhonePdf();
+  }
+
+  // ---- Phone PDF: range chip, layout tiles, details sheet, Create PDF ----
+  setupPhonePdf() {
+    document.getElementById('mPdfTiles').addEventListener('click', (e) => {
+      const tile = e.target.closest('[data-layout]');
+      if (!tile) return;
+      const radio = document.querySelector(`input[name="pdfLayout"][value="${tile.dataset.layout}"]`);
+      if (radio && !radio.checked) {
+        radio.checked = true;
+        radio.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      this.renderPhonePdf();
+    });
+    const name = document.getElementById('mPdfName');
+    const dept = document.getElementById('mPdfDept');
+    const cover = document.getElementById('mPdfCover');
+    document.getElementById('mPdfDetails').addEventListener('click', () => {
+      name.value = document.getElementById('pdfSubmitterName').value;
+      dept.value = document.getElementById('pdfDepartment').value;
+      cover.checked = document.getElementById('chkAddCover').checked;
+      this.openModal('modalPdfDetails');
+    });
+    // Copy into the laptop fields, so saving and the preview work the same
+    [[name, 'pdfSubmitterName'], [dept, 'pdfDepartment']].forEach(([el, id]) => {
+      el.addEventListener('input', () => {
+        const target = document.getElementById(id);
+        target.value = el.value;
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+        target.dispatchEvent(new Event('change', { bubbles: true }));
+        this.renderPhonePdf();
+      });
+    });
+    cover.addEventListener('change', () => {
+      const target = document.getElementById('chkAddCover');
+      target.checked = cover.checked;
+      target.dispatchEvent(new Event('change', { bubbles: true }));
+      this.renderPhonePdf();
+    });
+    document.getElementById('mPdfCreate').addEventListener('click', () => document.getElementById('btnCompilePdf').click());
+    document.getElementById('mPdfPrev').addEventListener('click', () => document.getElementById('btnPrevPage').click());
+    document.getElementById('mPdfNext').addEventListener('click', () => document.getElementById('btnNextPage').click());
+  }
+
+  renderPhonePdf() {
+    const createBtn = document.getElementById('mPdfCreate');
+    if (!createBtn) return;
+    const range = this._computeRange();
+    const rows = this._receiptsInRange(range);
+    const total = rows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    createBtn.disabled = rows.length === 0;
+    document.getElementById('mPdfCreateLabel').textContent = rows.length ? `Create PDF · ${this._money(total)}` : 'Create PDF';
+    const layout = this.selectedLayout || 'full';
+    document.querySelectorAll('#mPdfTiles [data-layout]').forEach(t =>
+      t.setAttribute('aria-checked', String(t.dataset.layout === layout)));
+    const who = (document.getElementById('pdfSubmitterName').value || '').trim();
+    const dept = (document.getElementById('pdfDepartment').value || '').trim();
+    const coverOn = document.getElementById('chkAddCover').checked;
+    document.getElementById('mPdfWho').textContent = who || dept ? [who, dept].filter(Boolean).join(' · ') : 'Add your name';
+    document.getElementById('mPdfWhoSub').textContent = `Name, department, cover sheet ${coverOn ? 'on' : 'off'}`;
+  }
+
+  // Mirror the laptop preview pager onto the phone pager
+  _syncPhonePager() {
+    const ind = document.getElementById('mPdfPageInd');
+    if (!ind) return;
+    ind.textContent = document.getElementById('previewPageIndicator').textContent;
+    document.getElementById('mPdfPrev').disabled = document.getElementById('btnPrevPage').disabled;
+    document.getElementById('mPdfNext').disabled = document.getElementById('btnNextPage').disabled;
+    const n = this.previewPdfDoc ? this.previewTotalPages : 0;
+    document.getElementById('mPdfPages').textContent = n ? `${n} ${n === 1 ? 'page' : 'pages'}` : '';
   }
 
   _categorySlug(category) {
