@@ -869,8 +869,6 @@ class ExpenseApp {
         await this.handleFileUpload(file);
       });
     });
-    document.getElementById('phNoReceipt').addEventListener('click', () => this.openNoReceiptForm());
-    document.getElementById('phSettings').addEventListener('click', () => this.showFullApp('tab-settings'));
     document.getElementById('navHome').addEventListener('click', () => this.showPhoneHome());
     this.setupPhoneTabs();
     this.setupPhoneReceipts();
