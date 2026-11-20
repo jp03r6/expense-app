@@ -379,13 +379,19 @@ class PdfCompiler {
               height: 32,
               color: rgb(0.15, 0.20, 0.30)
             });
-            page.drawText(`ITEM #${itemNum}: ${r.merchant} | Date: ${r.date} | Amount: $${(parseFloat(r.amount) || 0).toFixed(2)} [${this._displayCategory(r)}]`, {
-              x: 20,
-              y: height - 20,
-              size: 9.5,
-              font: fontBold,
-              color: rgb(1, 1, 1)
-            });
+            {
+              const prefix = `ITEM #${itemNum}: `;
+              const suffix = ` | Date: ${r.date} | Amount: $${(parseFloat(r.amount) || 0).toFixed(2)} [${this._displayCategory(r)}]`;
+              const room = Math.max(40, width - 40 - fontBold.widthOfTextAtSize(prefix + suffix, 9.5));
+              const label = this._truncateText(this._receiptLabel(r, fontBold), fontBold, 9.5, room);
+              page.drawText(prefix + label + suffix, {
+                x: 20,
+                y: height - 20,
+                size: 9.5,
+                font: fontBold,
+                color: rgb(1, 1, 1)
+              });
+            }
           }
           continue;
         } catch (err) {
@@ -407,7 +413,7 @@ class PdfCompiler {
         borderWidth: 1
       });
 
-      page.drawText(`ITEM #${itemNum}: ${r.merchant}`, {
+      page.drawText(`ITEM #${itemNum}: ${this._truncateText(this._receiptLabel(r, fontBold), fontBold, 11, 190)}`, {
         x: margin + 14,
         y: pageHeight - margin - 22,
         size: 11,
@@ -495,7 +501,7 @@ class PdfCompiler {
           color: rgb(0.93, 0.95, 0.98)
         });
 
-        page.drawText(`ITEM #${itemNum}: ${r.merchant}`, {
+        page.drawText(`ITEM #${itemNum}: ${this._truncateText(this._receiptLabel(r, fontBold), fontBold, 9.5, pageWidth - (margin * 2) - 220)}`, {
           x: margin + 10,
           y: slotY + slotHeight - 17,
           size: 9.5,
@@ -570,13 +576,19 @@ class PdfCompiler {
           borderWidth: 1
         });
 
-        page.drawText(`#${itemNum} ${r.merchant} - $${(parseFloat(r.amount) || 0).toFixed(2)}`, {
-          x: x + 6,
-          y: y + cellH - 16,
-          size: 8,
-          font: fontBold,
-          color: rgb(0.1, 0.1, 0.1)
-        });
+        {
+          const amt = ` - $${(parseFloat(r.amount) || 0).toFixed(2)}`;
+          const prefix = `#${itemNum} `;
+          const room = Math.max(20, cellW - 12 - fontBold.widthOfTextAtSize(prefix + amt, 8));
+          const label = this._truncateText(this._receiptLabel(r, fontBold), fontBold, 8, room);
+          page.drawText(prefix + label + amt, {
+            x: x + 6,
+            y: y + cellH - 16,
+            size: 8,
+            font: fontBold,
+            color: rgb(0.1, 0.1, 0.1)
+          });
+        }
 
         if (r.dataUrl) {
           try {
@@ -604,6 +616,12 @@ class PdfCompiler {
       width: origW * scale,
       height: origH * scale
     };
+  }
+
+  // Notes, sanitized for Helvetica. Older merchant values are ignored.
+  _receiptLabel(r, font) {
+    const notes = this._sanitizePdfText(r.notes, font);
+    return notes || 'Receipt';
   }
 
   _displayCategory(receipt) {

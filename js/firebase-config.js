@@ -367,7 +367,7 @@ class CloudSyncManager {
       } else if (payload.type === 'RECEIPT_ADDED') {
         await window.store.upsertReceiptFromSync(payload.receipt);
         if (window.expenseApp) {
-          window.expenseApp.showToast(`Receipt from ${payload.receipt.merchant || 'phone'} received!`, 'success');
+          window.expenseApp.showToast(`Receipt from ${(payload.receipt.notes || 'phone').trim() || 'phone'} received!`, 'success');
         }
       } else if (payload.type === 'RECEIPT_UPDATED') {
         await window.store.upsertReceiptFromSync(payload.receipt);

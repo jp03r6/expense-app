@@ -20,19 +20,18 @@ class SpreadsheetHelper {
 
     const rows = [];
     if (includeHeaders) {
-      rows.push(['#', 'Date', 'Merchant / Vendor', 'Category', 'Payment Method', 'Amount', 'Notes'].join('\t'));
+      rows.push(['#', 'Date', 'Notes', 'Category', 'Payment Method', 'Amount'].join('\t'));
     }
 
     receipts.forEach((r, idx) => {
       const lineNum = idx + 1;
       const date = r.date || '';
-      const merchant = (r.merchant || '').replace(/[\t\n\r]/g, ' ');
+      const notes = (r.notes || '').replace(/[\t\n\r]/g, ' ');
       const category = this._displayCategory(r).replace(/[\t\n\r]/g, ' ');
       const paymentMethod = this._displayPayment(r).replace(/[\t\n\r]/g, ' ');
       const amount = (parseFloat(r.amount) || 0).toFixed(2);
-      const notes = (r.notes || '').replace(/[\t\n\r]/g, ' ');
 
-      rows.push([lineNum, date, merchant, category, paymentMethod, amount, notes].join('\t'));
+      rows.push([lineNum, date, notes, category, paymentMethod, amount].join('\t'));
     });
 
     const tsvData = rows.join('\r\n');
@@ -70,7 +69,7 @@ class SpreadsheetHelper {
       ['Department:', report.department || ''],
       ['Export Date:', new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]],
       [], // Blank row
-      ['Item #', 'Date', 'Merchant / Vendor', 'Category', 'Payment Method', 'Amount ($)', 'Notes']
+      ['Item #', 'Date', 'Notes', 'Category', 'Payment Method', 'Amount ($)']
     ];
 
     let grandTotal = 0;
@@ -80,17 +79,16 @@ class SpreadsheetHelper {
       data.push([
         idx + 1,
         r.date || '',
-        r.merchant || '',
+        r.notes || '',
         this._displayCategory(r),
         this._displayPayment(r),
-        amt,
-        r.notes || ''
+        amt
       ]);
     });
 
     // Add Total Row
     data.push([]);
-    data.push(['', '', '', '', 'TOTAL:', grandTotal, '']);
+    data.push(['', '', '', '', 'TOTAL:', grandTotal]);
 
     const ws = XLSX.utils.aoa_to_sheet(data);
 
@@ -98,11 +96,10 @@ class SpreadsheetHelper {
     ws['!cols'] = [
       { wch: 8 },  // Item #
       { wch: 14 }, // Date
-      { wch: 26 }, // Merchant
+      { wch: 32 }, // Notes
       { wch: 22 }, // Category
       { wch: 18 }, // Payment Method
-      { wch: 14 }, // Amount
-      { wch: 32 }  // Notes
+      { wch: 14 }  // Amount
     ];
 
     const wb = XLSX.utils.book_new();
@@ -120,18 +117,17 @@ class SpreadsheetHelper {
    * Export receipts as a CSV file
    */
   exportToCsv(report, receipts) {
-    const headers = ['Item #', 'Date', 'Merchant', 'Category', 'Payment Method', 'Amount', 'Notes'];
+    const headers = ['Item #', 'Date', 'Notes', 'Category', 'Payment Method', 'Amount'];
     const rows = [headers];
 
     receipts.forEach((r, idx) => {
       rows.push([
         idx + 1,
         `"${(r.date || '').replace(/"/g, '""')}"`,
-        `"${(r.merchant || '').replace(/"/g, '""')}"`,
+        `"${(r.notes || '').replace(/"/g, '""')}"`,
         `"${this._displayCategory(r).replace(/"/g, '""')}"`,
         `"${this._displayPayment(r).replace(/"/g, '""')}"`,
-        (parseFloat(r.amount) || 0).toFixed(2),
-        `"${(r.notes || '').replace(/"/g, '""')}"`
+        (parseFloat(r.amount) || 0).toFixed(2)
       ]);
     });
 

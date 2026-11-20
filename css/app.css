@@ -3118,6 +3118,9 @@ html.show-home .mobile-nav-bar #navHome svg {
   font-size: 0.875rem;
   color: var(--ph-text);
 }
+.ph-detail-notes:empty {
+  display: none;
+}
 .ph-detail-actions {
   display: flex;
   gap: 8px;

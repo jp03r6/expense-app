@@ -387,7 +387,7 @@ class ExpenseStore {
       rawArrayBuffer: receiptData.rawArrayBuffer || null, // For PDFs
       thumbnailDataUrl: receiptData.thumbnailDataUrl || '',
       date: receiptData.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
-      merchant: receiptData.merchant || 'Merchant',
+      merchant: receiptData.merchant || '',
       category: receiptData.category || 'Meals',
       paymentMethod: receiptData.paymentMethod || 'Corporate Card',
       amount: parseFloat(receiptData.amount) || 0.0,
