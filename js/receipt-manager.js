@@ -45,7 +45,7 @@ class ReceiptManager {
       pageCount: 1,
       rotation: 0,
       enhanceContrast: false,
-      date: smartDefaults.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
+      date: this._isPlausibleReceiptDate(smartDefaults.date, this._localISO(new Date())) ? smartDefaults.date : this._localISO(new Date()),
       merchant: smartDefaults.merchant || 'Receipt',
       category: smartDefaults.category || 'Meals',
       paymentMethod: 'Corporate Card',
@@ -100,7 +100,7 @@ class ReceiptManager {
       pageCount: pageCount,
       rotation: 0,
       enhanceContrast: false,
-      date: smartDefaults.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
+      date: this._isPlausibleReceiptDate(smartDefaults.date, this._localISO(new Date())) ? smartDefaults.date : this._localISO(new Date()),
       merchant: smartDefaults.merchant || (file.name.toLowerCase().includes('uber') ? 'Uber' : 'PDF Receipt'),
       category: file.name.toLowerCase().includes('uber') ? 'Transportation' : 'Lodging',
       paymentMethod: 'Corporate Card',
@@ -195,11 +195,57 @@ class ReceiptManager {
     });
   }
 
+  // Local calendar date as YYYY-MM-DD (same idea as app.js _localISO).
+  _localISO(d = new Date()) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  // A date can be used as a receipt default only if it is a real calendar
+  // day and sits in a sensible window: 20 years ago through tomorrow.
+  _isPlausibleReceiptDate(iso, today) {
+    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+    const [y, m, d] = iso.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return false;
+    const [ty, tm, td] = String(today).split('-').map(Number);
+    if (!ty) return false;
+    const min = new Date(ty - 20, tm - 1, td);
+    const max = new Date(ty, tm - 1, td + 1); // tomorrow, for clock / timezone slack
+    const isoOf = (date) => this._localISO(date);
+    return iso >= isoOf(min) && iso <= isoOf(max);
+  }
+
+  // Pull a date out of a file name when it looks like a real receipt date,
+  // such as IMG_20261118_143022.jpg or Uber_2026-11-18.pdf.
+  //
+  // Chrome and Android often name a just-taken photo with a 10- or 13-digit
+  // Unix timestamp, e.g. 1795013012345.jpg. The old "first 8 digits are a
+  // date" regex turned that into 1795-01-30, or into an invalid date such as
+  // 1795-03-47, which left the date box blank.
+  _inferDateFromFileName(name, today = this._localISO(new Date())) {
+    if (!name) return '';
+    const withoutTimestamps = String(name).replace(/(^|[^\d])(\d{10}|\d{13})(?!\d)/g, '$1');
+    const patterns = [
+      /(?:^|[^\d])((?:19|20)\d{2})[-_/.](\d{2})[-_/.](\d{2})(?!\d)/g,
+      /(?:^|[^\d])((?:19|20)\d{2})(\d{2})(\d{2})(?!\d)/g
+    ];
+    for (const re of patterns) {
+      let match;
+      while ((match = re.exec(withoutTimestamps)) !== null) {
+        const iso = `${match[1]}-${match[2]}-${match[3]}`;
+        if (this._isPlausibleReceiptDate(iso, today)) return iso;
+      }
+    }
+    return '';
+  }
+
   _inferDefaultsFromFileName(name) {
     const clean = name.replace(/[-_]/g, ' ').toLowerCase();
     let merchant = '';
     let category = 'Meals';
-    let date = '';
 
     if (clean.includes('uber')) {
       merchant = 'Uber';
@@ -224,13 +270,7 @@ class ReceiptManager {
       }
     }
 
-    // Try to extract date pattern YYYY-MM-DD or YYYYMMDD
-    const dateMatch = name.match(/(\d{4})[-_]?(\d{2})[-_]?(\d{2})/);
-    if (dateMatch) {
-      date = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
-    }
-
-    return { merchant, category, date };
+    return { merchant, category, date: this._inferDateFromFileName(name) };
   }
 }
 

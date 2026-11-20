@@ -1128,7 +1128,7 @@ class ExpenseApp {
       this.stagedReceiptData = processed;
 
       // Populate modal form fields with inferred smart defaults
-      document.getElementById('inputDate').value = processed.date;
+      document.getElementById('inputDate').value = processed.date || this._localISO(new Date());
       document.getElementById('inputCategory').value = processed.category;
       document.getElementById('inputNotes').value = processed.notes;
 
