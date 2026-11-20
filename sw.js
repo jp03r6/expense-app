@@ -10,7 +10,7 @@
 //   deletes the old saved copies, and reloads any open ExpenseSnap tabs once
 //   so old code never runs against the new page.
 const APP_VERSION = '22';
-const CACHE_NAME = 'expensesnap-v22';
+const CACHE_NAME = 'expensesnap-v23';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
