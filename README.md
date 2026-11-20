@@ -58,6 +58,15 @@ Built specifically for the workflow where you:
 
 ---
 
+### 5. Accounts (sign in with email)
+- Signed out (default): receipts stay only on this device, like before.
+- Signed in: each person has a private account. Receipts, photos, and PDFs are saved in Cloud Firestore under `users/{uid}/` and appear on every phone or laptop signed in to that account, even if the other device was off.
+- Works offline: changes wait on the device and upload when you're back online.
+- Photos and PDFs are stored in Firestore in ~700 KB pieces, so no Cloud Storage bucket (and no Blaze plan) is needed. Max ~9 MB per receipt file.
+- Security rules (`firestore.rules`) let each account read and write only its own data.
+- One-time setup in the Firebase console (Firestore database, Email/Password sign-in, web app config pasted into `js/cloud-account.js`), then `firebase deploy --only firestore,hosting --project expensesnap-jp`. Until the config is pasted in, the Account section stays hidden.
+- Local testing: `npx firebase-tools emulators:start --only auth,firestore --project demo-expensesnap`, then open the app on `http://127.0.0.1:<port>/?emulator`.
+
 ## 📁 Project Structure
 
 ```

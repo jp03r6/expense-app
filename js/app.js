@@ -34,6 +34,8 @@ class ExpenseApp {
     // 1. Initialize IndexedDB Store
     await window.store.init();
     await window.cloudSyncManager.init();
+    // Accounts: never waits for the network (see js/cloud-account.js)
+    if (window.accountManager) await window.accountManager.init();
 
     // 2. Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
@@ -62,6 +64,7 @@ class ExpenseApp {
     // 3. Bind UI Events
     this._bindEvents();
     this.initTheme();
+    this.setupAccount();
 
     // 4. Subscribe to Store updates
     window.store.subscribe((event, data) => {
@@ -144,6 +147,89 @@ class ExpenseApp {
     });
   }
 
+  // --- Account (sign in / out). Logic lives in js/cloud-account.js ---
+  setupAccount() {
+    const am = window.accountManager;
+    if (!am || !am.isConfigured()) return; // not set up yet: app works as before
+    document.getElementById('accountDeskHome').hidden = false;
+    document.getElementById('mAccountSection').hidden = false;
+
+    const $ = (id) => document.getElementById(id);
+    const say = (text, type = 'info') => { const el = $('accountMessage'); el.textContent = text; el.dataset.type = type; };
+    const email = () => $('accountEmail').value;
+    const password = () => $('accountPassword').value;
+    const run = async (btn, work) => {
+      btn.disabled = true;
+      say('');
+      try { await work(); } catch (err) { say(am.friendlyError(err), 'error'); } finally { btn.disabled = false; }
+    };
+
+    $('accountForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      run($('btnSignIn'), async () => { say('Signing in…'); await am.signIn(email(), password()); });
+    });
+    $('btnSignUp').addEventListener('click', () => {
+      run($('btnSignUp'), async () => { say('Creating your account…'); await am.signUp(email(), password()); });
+    });
+    $('btnResetPassword').addEventListener('click', () => {
+      if (!email().trim()) { say('Type your email address above first.', 'error'); return; }
+      run($('btnResetPassword'), async () => {
+        await am.resetPassword(email());
+        say('Check your email for a link to set a new password.', 'success');
+      });
+    });
+    $('btnSignOut').addEventListener('click', () => run($('btnSignOut'), () => am.signOut()));
+    $('btnMoveLocal').addEventListener('click', () => {
+      run($('btnMoveLocal'), async () => {
+        const n = await am.moveLocalReceiptsIntoAccount();
+        $('btnMoveLocal').hidden = true;
+        say(`Moved ${n} receipt${n === 1 ? '' : 's'} into your account.`, 'success');
+      });
+    });
+
+    if (am.isSignedIn()) {
+      // The account replaces the old live relay Sync
+      ['syncDeskHome', 'mSecSync', 'mSyncSlot'].forEach(id => { const el = $(id); if (el) el.hidden = true; });
+      if (window.cloudSyncManager.isEnabled()) window.cloudSyncManager.setEnabled(false);
+      am.localOnlyReceiptCount().then((n) => {
+        if (n > 0) {
+          $('btnMoveLocal').textContent = `Move ${n} receipt${n === 1 ? '' : 's'} from this device into my account`;
+          $('btnMoveLocal').hidden = false;
+        }
+      });
+    }
+    am.onChange((s) => this.renderAccount(s));
+  }
+
+  renderAccount(s) {
+    const $ = (id) => document.getElementById(id);
+    $('accountSignedOut').hidden = s.signedIn;
+    $('accountSignedIn').hidden = !s.signedIn;
+    $('accountWho').textContent = s.email;
+    const labels = {
+      connecting: 'Connecting…',
+      synced: 'All receipts are saved to your account.',
+      uploading: s.pending > 0 ? `Uploading ${s.pending} change${s.pending === 1 ? '' : 's'}…` : 'Uploading…',
+      offline: 'Offline. Changes will upload when you\'re back online.',
+      error: s.error || 'Something went wrong.'
+    };
+    $('accountStatus').textContent = labels[s.status] || '';
+    $('accountStatus').dataset.status = s.status;
+    if (s.error && s.status !== 'error') { $('accountMessage').textContent = s.error; $('accountMessage').dataset.type = 'error'; }
+    const note = $('mStorageNote');
+    if (note) note.textContent = s.signedIn ? 'Saved to your account and on this device' : 'Receipts are saved on this device';
+    if (s.signedIn) {
+      const text = $('syncText');
+      const badge = $('syncBadge');
+      if (text) text.textContent = s.status === 'synced' ? 'Account' : s.status === 'offline' ? 'Offline' : 'Syncing…';
+      if (badge) {
+        badge.classList.toggle('synced', s.status === 'synced');
+        badge.classList.toggle('online', false);
+        badge.classList.toggle('syncing', s.status === 'connecting' || s.status === 'uploading');
+      }
+    }
+  }
+
   // Phone (narrow or touch screen) leads with scanning; laptop leads with the QR code.
   setupSyncDeviceLayout() {
     const area = document.getElementById('syncPairingArea');
@@ -155,8 +241,10 @@ class ExpenseApp {
   }
 
   handleSyncStatusChange(status) {
-    const headerSyncText = document.getElementById('syncText');
-    const headerSyncBadge = document.getElementById('syncBadge');
+    // Signed in to an account: the header badge shows the account status instead
+    const accountOn = window.accountManager && window.accountManager.isSignedIn();
+    const headerSyncText = accountOn ? null : document.getElementById('syncText');
+    const headerSyncBadge = accountOn ? null : document.getElementById('syncBadge');
 
     if (headerSyncText) headerSyncText.textContent = status.label;
 
@@ -977,6 +1065,14 @@ class ExpenseApp {
   // phone rule starts or stops matching.
   applyPhoneLayout() {
     const phone = document.documentElement.classList.contains('is-phone');
+    // Account panel: phone Settings card on phones, laptop Account box otherwise
+    const accountPanel = document.getElementById('accountPanel');
+    const accountPhone = document.getElementById('mAccountSlot');
+    const accountDesk = document.getElementById('accountDeskHome');
+    if (accountPanel && accountPhone && accountDesk) {
+      const target = phone ? accountPhone : accountDesk;
+      if (accountPanel.parentElement !== target) target.appendChild(accountPanel);
+    }
     // Sync controls: the real switch row and pairing area live in the phone
     // Settings card on phones, and in the laptop's Sync box otherwise.
     const syncRow = document.querySelector('label.sync-toggle-row[for="toggleSync"]');

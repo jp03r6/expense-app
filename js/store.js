@@ -2,9 +2,16 @@
  * ExpenseSnap - Storage & State Management (IndexedDB + Cloud Sync)
  */
 
+// Starter report id used in account mode (see _ensureDefaultReport)
+const ACCOUNT_DEFAULT_REPORT_ID = 'rep_main';
+
 class ExpenseStore {
   constructor() {
-    this.dbName = 'ExpenseSnapDB';
+    // Signed out: one local database on this device (the original one).
+    // Signed in: each account gets its own local copy, kept in step with the
+    // cloud by js/cloud-account.js. Picked before the database opens.
+    this.accountUid = localStorage.getItem('expensesnap_account_uid') || null;
+    this.dbName = this.accountUid ? 'ExpenseSnapDB_' + this.accountUid : 'ExpenseSnapDB';
     this.dbVersion = 1;
     this.db = null;
     this.listeners = [];
@@ -39,8 +46,8 @@ class ExpenseStore {
           // at the same moment can no longer both create "November Expense Report".
           await this._ensureDefaultReport();
           // Tidy up empty copies left behind by that old race (never touches
-          // a report that has receipts).
-          await this.removeEmptyDuplicateReports();
+          // a report that has receipts). Account copies never had that race.
+          if (!this.accountUid) await this.removeEmptyDuplicateReports();
           await this._resolveActiveReport();
         } catch (err) {
           console.error('Store startup error:', err);
@@ -84,6 +91,12 @@ class ExpenseStore {
       countReq.onsuccess = () => {
         if (countReq.result === 0) {
           created = this._newReportRecord('November Expense Report');
+          if (this.accountUid) {
+            // Same id on every device of one account, and "oldest possible"
+            // so the copy already in the cloud always wins.
+            created.id = ACCOUNT_DEFAULT_REPORT_ID;
+            created.updatedAt = 0;
+          }
           reports.add(created);
           tx.objectStore('meta').put({ key: 'activeReportId', value: created.id });
         }
@@ -315,7 +328,7 @@ class ExpenseStore {
       }
     }
 
-    this.notify('report:deleted', { reportId });
+    this.notify('report:deleted', { reportId, receiptIds: receipts.map(r => r.id) });
   }
 
   // --- Receipts Management ---
@@ -516,6 +529,41 @@ class ExpenseStore {
     });
 
     this.notify('receipts:reordered', { reportId, orderedIds });
+  }
+
+  // --- Account cloud copy (js/cloud-account.js) ---
+  // Writes changes that came FROM the cloud straight into this device's copy.
+  // Sends 'cloud:applied' (not the usual add/update events), so these
+  // changes are never sent back up to the cloud.
+  async applyCloudChanges({ putReports = [], putReceipts = [], delReports = [], delReceipts = [] }) {
+    if (!putReports.length && !putReceipts.length && !delReports.length && !delReceipts.length) return;
+    await new Promise((resolve, reject) => {
+      const tx = this.db.transaction(['reports', 'receipts'], 'readwrite');
+      const reports = tx.objectStore('reports');
+      const receipts = tx.objectStore('receipts');
+      putReports.forEach(r => reports.put(r));
+      putReceipts.forEach(r => receipts.put(r));
+      delReports.forEach(id => reports.delete(id));
+      delReceipts.forEach(id => receipts.delete(id));
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+    if ((await this.getAllReports()).length === 0) await this._ensureDefaultReport();
+    await this._resolveActiveReport();
+    this.notify('cloud:applied', {});
+  }
+
+  // Saves bookkeeping fields (like cloudFileHash) without counting as an edit
+  async patchReceiptQuietly(receiptId, fields) {
+    const receipt = await this.getReceipt(receiptId);
+    if (!receipt) return;
+    await new Promise((resolve, reject) => {
+      const tx = this.db.transaction('receipts', 'readwrite');
+      tx.objectStore('receipts').put({ ...receipt, ...fields });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
   }
 
   // --- Real-Time Sync Ingestion ---

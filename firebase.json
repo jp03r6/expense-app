@@ -13,7 +13,9 @@
       ".git/**",
       "**/.git/**",
       ".firebaserc",
-      "README.md"
+      "README.md",
+      "firestore.rules",
+      "firestore.indexes.json"
     ],
     "headers": [
       {
@@ -80,5 +82,21 @@
         ]
       }
     ]
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8181
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
   }
 }
