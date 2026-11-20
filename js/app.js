@@ -1110,15 +1110,11 @@ class ExpenseApp {
     });
   }
 
-  // Title shown for a receipt: Notes, or the old merchant name if notes
-  // are empty so existing records stay readable. New receipts no longer
-  // collect a merchant, so they show notes or "Receipt".
+  // Title shown for a receipt: Notes, or "Receipt" when notes are empty.
+  // Older records may still have a merchant field in storage; it is not shown.
   _receiptLabel(r) {
     const notes = String(r && r.notes || '').trim();
-    if (notes) return notes;
-    const merchant = String(r && r.merchant || '').trim();
-    if (merchant) return merchant;
-    return 'Receipt';
+    return notes || 'Receipt';
   }
 
   _money(n) {
@@ -1409,7 +1405,7 @@ class ExpenseApp {
     const shown = all.filter(r => {
       if (cat && labels.displayCategory(r.category) !== cat) return false;
       if (!needle) return true;
-      return [this._receiptLabel(r), r.notes, r.merchant, labels.displayCategory(r.category), (parseFloat(r.amount) || 0).toFixed(2)]
+      return [this._receiptLabel(r), r.notes, labels.displayCategory(r.category), (parseFloat(r.amount) || 0).toFixed(2)]
         .some(v => String(v || '').toLowerCase().includes(needle));
     });
 

@@ -618,14 +618,10 @@ class PdfCompiler {
     };
   }
 
-  // Notes, or the stored merchant if notes are empty (older records),
-  // sanitized for Helvetica.
+  // Notes, sanitized for Helvetica. Older merchant values are ignored.
   _receiptLabel(r, font) {
     const notes = this._sanitizePdfText(r.notes, font);
-    if (notes) return notes;
-    const merchant = this._sanitizePdfText(r.merchant, font);
-    if (merchant) return merchant;
-    return 'Receipt';
+    return notes || 'Receipt';
   }
 
   _displayCategory(receipt) {
