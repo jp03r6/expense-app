@@ -29,11 +29,13 @@
   // These values are not secret; the security rules (firestore.rules) are
   // what keep each account's receipts private. Until apiKey and appId are
   // filled in, the Account section stays hidden and the app works as before.
+  // (No storageBucket on purpose: photos are kept in Firestore, see above.)
   const FIREBASE_WEB_CONFIG = {
-    apiKey: '',
+    apiKey: 'AIzaSyAoZvdNoH2lE10C3GyYMYIt6hRlEF7BE5Y',
     authDomain: 'expensesnap-jp.firebaseapp.com',
     projectId: 'expensesnap-jp',
-    appId: ''
+    appId: '1:793351273759:web:d99d9ac6c9e6901583842a',
+    messagingSenderId: '793351273759'
   };
 
   const UID_KEY = 'expensesnap_account_uid';
