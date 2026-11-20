@@ -3669,3 +3669,22 @@ html:not(.is-phone) .m-icon{display:none!important}
 /* Export-backup sheet: centered card when it shows on a laptop (Safari) */
 html:not(.is-phone) #modalBackup{align-items:center;padding:24px}
 html:not(.is-phone) #modalBackup .ph-sheet{border-radius:20px}
+
+/* ---- Account (sign in) ---- */
+#accountDeskHome[hidden], #mAccountSection[hidden], #syncDeskHome[hidden],
+#mSecSync[hidden], #mSyncSlot[hidden], .account-panel [hidden] { display: none !important; }
+.account-panel { display: flex; flex-direction: column; gap: 10px; }
+#mAccountSlot .account-panel { padding: 14px 16px; }
+.account-intro, .account-who, .account-status { color: var(--text-muted); font-size: 0.875rem; margin: 0; }
+.account-who b { color: var(--text-main, inherit); word-break: break-all; }
+.account-form { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.account-form .form-input { width: 100%; font-size: 16px; }
+.account-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.account-actions .btn { flex: 1 1 140px; justify-content: center; }
+#accountSignedIn { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.account-link { background: none; border: 0; padding: 4px 0; color: var(--primary, #4f46e5); font: inherit; font-size: 0.875rem; cursor: pointer; align-self: flex-start; text-decoration: underline; }
+.account-message { margin: 0; font-size: 0.875rem; min-height: 1em; }
+.account-message:empty { display: none; }
+.account-message[data-type="error"] { color: var(--danger, #dc2626); }
+.account-message[data-type="success"] { color: var(--success, #16a34a); }
+.account-status[data-status="synced"] { color: var(--success, #16a34a); }

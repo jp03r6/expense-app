@@ -586,6 +586,10 @@
       <div class="mt m-only" id="mSettings">
         <div class="mt-top"><h1>Settings</h1></div>
         <div class="mt-px">
+          <div id="mAccountSection" hidden>
+            <h2 class="mt-section" id="mSecAccount">Account</h2>
+            <div class="mt-card mt-group mt-account" id="mAccountSlot" role="group" aria-labelledby="mSecAccount"></div>
+          </div>
           <h2 class="mt-section" id="mSecSync">Sync between devices</h2>
           <div class="mt-card mt-group mt-sync" id="mSyncSlot" role="group" aria-labelledby="mSecSync"></div>
 
@@ -644,12 +648,38 @@
             </div>
             <div class="mt-li mt-li-static">
               <span class="mt-li-ic" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg></span>
-              <span class="mt-li-main"><b>Storage</b><small>Receipts are saved on this device</small></span>
+              <span class="mt-li-main"><b>Storage</b><small id="mStorageNote">Receipts are saved on this device</small></span>
             </div>
           </div>
         </div>
       </div>
       <div class="d-only" style="max-width: 700px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px;">
+        <!-- Account: sign in to keep receipts in your own private cloud account.
+             This one panel moves into #mAccountSlot on phones (like Sync). -->
+        <div id="accountDeskHome" class="account-desk" hidden style="background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 24px;">
+          <h3 style="font-size: 1.25rem;">👤 Account</h3>
+          <div id="accountPanel" class="account-panel">
+            <div id="accountSignedOut">
+              <p class="account-intro">Sign in to save your receipts to your own private account and see them on your phone and laptop.</p>
+              <form id="accountForm" class="account-form" novalidate>
+                <input type="email" id="accountEmail" class="form-input" placeholder="Email" autocomplete="username" aria-label="Email">
+                <input type="password" id="accountPassword" class="form-input" placeholder="Password (at least 6 characters)" autocomplete="current-password" aria-label="Password">
+                <div class="account-actions">
+                  <button type="submit" id="btnSignIn" class="btn btn-primary">Sign in</button>
+                  <button type="button" id="btnSignUp" class="btn btn-secondary">Create account</button>
+                </div>
+                <button type="button" id="btnResetPassword" class="account-link">Forgot password?</button>
+              </form>
+            </div>
+            <div id="accountSignedIn" hidden>
+              <p class="account-who">Signed in as <b id="accountWho"></b></p>
+              <p id="accountStatus" class="account-status"></p>
+              <button type="button" id="btnMoveLocal" class="btn btn-primary" hidden></button>
+              <button type="button" id="btnSignOut" class="btn btn-secondary">Sign out</button>
+            </div>
+            <p id="accountMessage" class="account-message" role="status" aria-live="polite"></p>
+          </div>
+        </div>
         <!-- Multi-Device Pairing Box -->
         <div id="syncDeskHome" style="background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 24px;">
           <h3 style="font-size: 1.25rem;">📱 Multi-Device Sync</h3>
@@ -880,6 +910,7 @@
   <script src="js/pdf-compiler.js?v=23"></script>
   <script src="js/spreadsheet-helper.js?v=23"></script>
   <script src="js/firebase-config.js?v=23"></script>
+  <script src="js/cloud-account.js?v=23"></script>
   <script src="js/app.js?v=23"></script>
 </body>
 </html>

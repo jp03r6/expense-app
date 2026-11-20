@@ -22,6 +22,7 @@ const ASSETS_TO_CACHE = [
   `./js/pdf-compiler.js?v=${APP_VERSION}`,
   `./js/spreadsheet-helper.js?v=${APP_VERSION}`,
   `./js/firebase-config.js?v=${APP_VERSION}`,
+  `./js/cloud-account.js?v=${APP_VERSION}`,
   `./js/app.js?v=${APP_VERSION}`,
   './vendor/pdf-lib.min.js',
   './vendor/pdf.min.js',
@@ -94,7 +95,7 @@ async function cacheFirst(request) {
   const cached = await cache.match(request);
   if (cached) return cached;
   const fresh = await fetch(request);
-  if (fresh && fresh.ok && fresh.type === 'basic') {
+  if (fresh && fresh.ok && (fresh.type === 'basic' || fresh.type === 'cors')) {
     cache.put(request, fresh.clone());
   }
   return fresh;
@@ -104,6 +105,12 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
+  // Firebase's code for accounts (versioned files on Google's CDN): keep a
+  // saved copy so a signed-in app still starts offline.
+  if (url.origin === 'https://www.gstatic.com' && url.pathname.startsWith('/firebasejs/')) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
   if (url.origin !== self.location.origin) return; // let the browser handle other sites
 
   if (isVendorOrIcon(url)) {
