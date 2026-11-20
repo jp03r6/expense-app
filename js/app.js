@@ -376,7 +376,6 @@ class ExpenseApp {
     document.getElementById('btnSaveReceipt').addEventListener('click', async () => {
       const date = document.getElementById('inputDate').value;
       const amount = parseFloat(document.getElementById('inputAmount').value) || 0;
-      const merchant = document.getElementById('inputMerchant').value.trim() || 'Receipt';
       const category = document.getElementById('inputCategory').value;
       const paymentMethod = document.getElementById('inputPayment').value;
       const notes = document.getElementById('inputNotes').value.trim();
@@ -391,7 +390,6 @@ class ExpenseApp {
         const updated = await window.store.updateReceipt(this.editingReceiptId, {
           date,
           amount,
-          merchant,
           category,
           paymentMethod,
           notes
@@ -403,13 +401,13 @@ class ExpenseApp {
         let staged = this.stagedReceiptData;
         if (staged.noReceipt) {
           const { noReceipt, ...rest } = staged;
-          staged = { ...rest, ...this._makeNoReceiptImage({ date, amount, merchant, category }) };
+          staged = { ...rest, ...this._makeNoReceiptImage({ date, amount, merchant: notes || 'Receipt', category }) };
         }
         const added = await window.store.addReceipt({
           ...staged,
           date,
           amount,
-          merchant,
+          merchant: '',
           category,
           paymentMethod,
           notes,
@@ -759,7 +757,6 @@ class ExpenseApp {
     document.getElementById('dropzone').style.display = 'block';
     document.getElementById('inputDate').value = this._localISO(new Date());
     document.getElementById('inputAmount').value = '';
-    document.getElementById('inputMerchant').value = '';
     document.getElementById('inputNotes').value = '';
     this._fillLabeledSelect('inputCategory', window.expenseLabels.CATEGORIES, 'Meals', window.expenseLabels.canonicalCategory);
     this._fillLabeledSelect('inputPayment', window.expenseLabels.PAYMENTS, 'Corporate Card', window.expenseLabels.canonicalPayment);
@@ -773,7 +770,6 @@ class ExpenseApp {
     document.getElementById('modalReceiptTitle').textContent = title;
     document.getElementById('inputDate').value = r.date || '';
     document.getElementById('inputAmount').value = r.amount || '';
-    document.getElementById('inputMerchant').value = r.merchant || '';
     this._fillLabeledSelect('inputCategory', window.expenseLabels.CATEGORIES, r.category, window.expenseLabels.canonicalCategory);
     this._fillLabeledSelect('inputPayment', window.expenseLabels.PAYMENTS, r.paymentMethod, window.expenseLabels.canonicalPayment);
     document.getElementById('inputNotes').value = r.notes || '';
@@ -1106,12 +1102,23 @@ class ExpenseApp {
       row.className = 'ph-row';
       const when = r.date ? this._prettyDate(r.date, false) : '';
       const cat = window.expenseLabels.displayCategory(r.category);
-      row.innerHTML = `<span class="ph-row-text"><b>${this._escape(r.merchant || 'Receipt')}</b>` +
+      row.innerHTML = `<span class="ph-row-text"><b>${this._escape(this._receiptLabel(r))}</b>` +
         `<small>${this._escape([when, cat].filter(Boolean).join(' · '))}</small></span>` +
         `<span class="ph-money">${this._money(parseFloat(r.amount) || 0)}</span>`;
       row.addEventListener('click', () => this.openEditReceipt(r));
       list.appendChild(row);
     });
+  }
+
+  // Title shown for a receipt: Notes, or the old merchant name if notes
+  // are empty so existing records stay readable. New receipts no longer
+  // collect a merchant, so they show notes or "Receipt".
+  _receiptLabel(r) {
+    const notes = String(r && r.notes || '').trim();
+    if (notes) return notes;
+    const merchant = String(r && r.merchant || '').trim();
+    if (merchant) return merchant;
+    return 'Receipt';
   }
 
   _money(n) {
@@ -1126,7 +1133,6 @@ class ExpenseApp {
 
       // Populate modal form fields with inferred smart defaults
       document.getElementById('inputDate').value = processed.date;
-      document.getElementById('inputMerchant').value = processed.merchant;
       document.getElementById('inputCategory').value = processed.category;
       document.getElementById('inputNotes').value = processed.notes;
 
@@ -1219,10 +1225,10 @@ class ExpenseApp {
         </div>
         <div class="receipt-thumb-wrapper" title="Click to inspect receipt">
           <span class="receipt-type-badge ${typeBadgeClass}">${typeLabel}</span>
-          <img class="receipt-thumb" src="${r.thumbnailDataUrl || r.dataUrl}" alt="${r.merchant}">
+          <img class="receipt-thumb" src="${r.thumbnailDataUrl || r.dataUrl}" alt="${this._escape(this._receiptLabel(r))}">
         </div>
         <div class="receipt-card-body">
-          <div class="receipt-merchant">${this._escape(r.merchant)}</div>
+          <div class="receipt-merchant">${this._escape(this._receiptLabel(r))}</div>
           <div class="receipt-meta">
             <span>📅 ${r.date || 'No Date'}</span>
             <span class="receipt-amount">$${(parseFloat(r.amount) || 0).toFixed(2)}</span>
@@ -1241,7 +1247,7 @@ class ExpenseApp {
 
       // Zoom viewer
       card.querySelector('.receipt-thumb-wrapper').addEventListener('click', () => {
-        document.getElementById('zoomTitle').textContent = `${r.merchant} - $${(parseFloat(r.amount) || 0).toFixed(2)}`;
+        document.getElementById('zoomTitle').textContent = `${this._receiptLabel(r)} - $${(parseFloat(r.amount) || 0).toFixed(2)}`;
         document.getElementById('zoomImg').src = r.dataUrl || r.thumbnailDataUrl;
         this.openModal('modalZoom');
       });
@@ -1283,7 +1289,7 @@ class ExpenseApp {
   }
 
   async deleteReceiptWithConfirm(r) {
-    if (!confirm(`Delete receipt from ${r.merchant}?`)) return false;
+    if (!confirm(`Delete this receipt?`)) return false;
     await window.store.deleteReceipt(r.id);
     window.cloudSyncManager.broadcastReceiptDeleted(r.id);
     this.showToast('Receipt removed', 'info');
@@ -1291,7 +1297,7 @@ class ExpenseApp {
   }
 
   _openZoom(r) {
-    document.getElementById('zoomTitle').textContent = `${r.merchant} - $${(parseFloat(r.amount) || 0).toFixed(2)}`;
+    document.getElementById('zoomTitle').textContent = `${this._receiptLabel(r)} - $${(parseFloat(r.amount) || 0).toFixed(2)}`;
     document.getElementById('zoomImg').src = r.dataUrl || r.thumbnailDataUrl;
     this.openModal('modalZoom');
   }
@@ -1370,8 +1376,8 @@ class ExpenseApp {
   _fillReceiptDetail(r) {
     const labels = window.expenseLabels;
     document.getElementById('mDetImg').src = r.thumbnailDataUrl || r.dataUrl || '';
-    document.getElementById('mDetImg').alt = `Receipt from ${r.merchant || 'unknown merchant'}`;
-    document.getElementById('mDetMerchant').textContent = r.merchant || 'Receipt';
+    document.getElementById('mDetImg').alt = this._receiptLabel(r);
+    document.getElementById('mDetMerchant').textContent = this._receiptLabel(r);
     document.getElementById('mDetAmount').textContent = this._money(r.amount);
     let when = 'No date';
     if (/^\d{4}-\d{2}-\d{2}$/.test(r.date || '')) {
@@ -1382,7 +1388,7 @@ class ExpenseApp {
     if (r.paymentMethod) bits.push(labels.displayPayment ? labels.displayPayment(r.paymentMethod) : r.paymentMethod);
     if (r.type === 'pdf') bits.push('PDF');
     document.getElementById('mDetMeta').innerHTML = `${this._escape(when)}<br>${this._escape(bits.join(' · '))}`;
-    document.getElementById('mDetNotes').textContent = r.notes || '';
+    document.getElementById('mDetNotes').textContent = '';
   }
 
   renderPhoneReceipts() {
@@ -1403,7 +1409,7 @@ class ExpenseApp {
     const shown = all.filter(r => {
       if (cat && labels.displayCategory(r.category) !== cat) return false;
       if (!needle) return true;
-      return [r.merchant, r.notes, labels.displayCategory(r.category), (parseFloat(r.amount) || 0).toFixed(2)]
+      return [this._receiptLabel(r), r.notes, r.merchant, labels.displayCategory(r.category), (parseFloat(r.amount) || 0).toFixed(2)]
         .some(v => String(v || '').toLowerCase().includes(needle));
     });
 
@@ -1422,12 +1428,12 @@ class ExpenseApp {
     list.innerHTML = groups.map(g => {
       const sum = g.items.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
       const rows = g.items.map(r => {
+        const label = this._receiptLabel(r);
         const meta = [this._shortDate(r.date), labels.displayCategory(r.category)];
-        if (r.notes) meta.push(r.notes);
-        else if (r.type === 'pdf') meta.push('PDF');
-        return `<button type="button" class="mt-row" data-id="${this._escape(String(r.id))}" aria-label="${this._escape(`${r.merchant}, ${this._money(r.amount)}, ${this._shortDate(r.date)}`)}">` +
+        if (r.type === 'pdf') meta.push('PDF');
+        return `<button type="button" class="mt-row" data-id="${this._escape(String(r.id))}" aria-label="${this._escape(`${label}, ${this._money(r.amount)}, ${this._shortDate(r.date)}`)}">` +
           `<img class="mt-thumb" src="${r.thumbnailDataUrl || r.dataUrl || ''}" alt="" loading="lazy">` +
-          `<span class="mt-row-t"><b>${this._escape(r.merchant || 'Receipt')}</b><small>${this._escape(meta.join(' · '))}</small></span>` +
+          `<span class="mt-row-t"><b>${this._escape(label)}</b><small>${this._escape(meta.join(' · '))}</small></span>` +
           `<span class="mt-money">${this._money(r.amount)}</span></button>`;
       }).join('');
       return `<div class="mt-group-h"><span>${this._escape(g.key ? this._monthName(g.key) : 'No date')}</span><span>${g.items.length} · ${this._money(sum)}</span></div><div class="mt-list">${rows}</div>`;
@@ -1505,11 +1511,11 @@ class ExpenseApp {
         m = new Date(y, mo - 1, da).toLocaleDateString('en-US', { month: 'short' });
         d = String(da);
       }
+      const label = this._receiptLabel(r);
       const meta = [labels.displayCategory(r.category), labels.displayPayment(r.paymentMethod)];
-      if (r.notes) meta.push(r.notes);
-      return `<button type="button" class="mt-row" data-id="${this._escape(String(r.id))}" aria-label="${this._escape(`Edit ${r.merchant}, ${this._money(r.amount)}`)}">` +
+      return `<button type="button" class="mt-row" data-id="${this._escape(String(r.id))}" aria-label="${this._escape(`Edit ${label}, ${this._money(r.amount)}`)}">` +
         `<span class="mt-date" aria-hidden="true"><span class="m" style="display:block">${m}</span><span class="d" style="display:block">${d || '–'}</span></span>` +
-        `<span class="mt-row-t"><b>${this._escape(r.merchant || 'Receipt')}</b><small>${this._escape(meta.join(' · '))}</small></span>` +
+        `<span class="mt-row-t"><b>${this._escape(label)}</b><small>${this._escape(meta.join(' · '))}</small></span>` +
         `<span class="mt-money">${this._money(r.amount)}</span></button>`;
     }).join('');
   }
@@ -1536,7 +1542,7 @@ class ExpenseApp {
         : `No receipts dated ${this._escape(range.label)}. Pick another range above.`;
       tbody.innerHTML = `
         <tr>
-          <td colspan="9" class="ledger-empty" style="text-align: center; color: var(--text-muted); padding: 30px;">
+          <td colspan="8" class="ledger-empty" style="text-align: center; color: var(--text-muted); padding: 30px;">
             ${msg}
           </td>
         </tr>
@@ -1555,9 +1561,6 @@ class ExpenseApp {
         </td>
         <td>
           <input type="date" class="table-input" value="${r.date || ''}" data-field="date">
-        </td>
-        <td>
-          <input type="text" class="table-input" value="${this._escape(r.merchant)}" data-field="merchant">
         </td>
         <td>
           <select class="table-input cat-select cat-${catSlug}" data-field="category">
@@ -1582,7 +1585,7 @@ class ExpenseApp {
 
       // Zoom click
       tr.querySelector('.table-thumb').addEventListener('click', () => {
-        document.getElementById('zoomTitle').textContent = `${r.merchant} - $${(parseFloat(r.amount) || 0).toFixed(2)}`;
+        document.getElementById('zoomTitle').textContent = `${this._receiptLabel(r)} - $${(parseFloat(r.amount) || 0).toFixed(2)}`;
         document.getElementById('zoomImg').src = r.dataUrl || r.thumbnailDataUrl;
         this.openModal('modalZoom');
       });
@@ -1602,7 +1605,7 @@ class ExpenseApp {
 
       // Delete from table
       tr.querySelector('.btn-table-del').addEventListener('click', async () => {
-        if (confirm(`Remove receipt from ${r.merchant}?`)) {
+        if (confirm(`Remove this receipt?`)) {
           await window.store.deleteReceipt(r.id);
           window.cloudSyncManager.broadcastReceiptDeleted(r.id);
         }
